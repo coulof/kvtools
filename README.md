@@ -149,9 +149,17 @@ make build
 
 ## Roadmap
 
+- [ ] **Advanced `kvHealth` Audit Rules**:
+  - **Duplicate MAC Detection**: Detect duplicate MAC address assignments across running interfaces and VM specs.
+  - **Windows Hyper-V Enlightenments**: Flag Windows guests missing hypervisor enlightenments (`synic`, `relaxed`, `spinlocks`, `vapic`).
+  - **Oversized vCPU Allocation**: Flag VMs assigned more vCPUs than any single physical node possesses.
+  - **vCPU Hotplug Ceiling Check**: Detect hotplug requests exceeding max socket topology limits.
+  - **Retained Snapshot Content Auditing**: Surface orphaned `VolumeSnapshotContent` objects holding SAN/CSI storage with `deletionPolicy: Retain`.
+  - **IOThreads & VirtIO-RNG Tuning**: Identify high-throughput disk workloads lacking dedicated IO threads or missing entropy devices.
+- [ ] **Additional Inventory Sheets**:
+  - **`kvMigration`**: Live migration history, migration durations, source/target nodes, and failure reasons.
+  - **`kvEvents`**: Aggregated VM and virt-launcher warning events (OOMKills, scheduling failures, disk attachment timeouts) over the last 24h.
 - [ ] **Krew Plugin Index**: Publish `kubectl-kvtools` to the official [Krew index](https://krew.sigs.k8s.io/) (`kubectl krew install kvtools`).
-- [ ] **Interactive HTML Exporter**: Generate single-file, self-contained interactive web dashboards.
-- [ ] **Migration Sizing Automation**: Direct integration and artifact feed into migration sizing utilities (such as `harvester-sizer`).
 
 ---
 
