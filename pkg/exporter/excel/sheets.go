@@ -39,8 +39,8 @@ func writeKVInfoSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 	headers := []string{
 		"VM Name", "Namespace", "Power State", "Run Strategy", "Node",
 		"IP Address", "Guest OS", "Firmware / Boot", "TPM Enabled",
-		"CPUs (C/S/T)", "Memory Configured (GiB)", "Disks Count", "NICs Count",
-		"Created Time", "Uptime", "Labels", "Annotations", "UID",
+		"CPUs (C/S/T)", "CPU Hotplug Max", "Memory Configured (GiB)", "Memory Hotplug Max (GiB)",
+		"Disks Count", "NICs Count", "Affinity Rules", "Created Time", "Uptime", "Labels", "Annotations", "UID",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -55,8 +55,8 @@ func writeKVInfoSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 		vals := []interface{}{
 			r.VMName, r.Namespace, r.PowerState, r.RunStrategy, r.Node,
 			r.IPAddress, r.GuestOS, r.FirmwareBoot, r.TPMEnabled,
-			r.CPUsSummary, r.MemoryConfigGiB, r.DisksCount, r.NICsCount,
-			r.CreatedTime, r.Uptime, r.Labels, r.Annotations, r.UID,
+			r.CPUsSummary, r.CPUHotplugMax, r.MemoryConfigGiB, r.MemoryHotplugMaxGiB,
+			r.DisksCount, r.NICsCount, r.AffinityRules, r.CreatedTime, r.Uptime, r.Labels, r.Annotations, r.UID,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -376,6 +376,7 @@ func writeKVNodeSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 		"Allocatable CPU", "Allocatable RAM (GiB)", "Allocated VM vCPUs",
 		"Allocated VM RAM (GiB)", "vCPU Overcommit Ratio", "Active VM Count",
 		"KVM Hardware Acceleration Enabled", "Kubernetes Version", "OS Image", "Kernel Version",
+		"Node Taints", "Node Conditions",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -392,6 +393,7 @@ func writeKVNodeSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 			r.AllocatableCPU, r.AllocatableRAMGiB, r.AllocatedVMvCPUs,
 			r.AllocatedVMRAMGiB, r.VCPUOvercommitRatio, r.ActiveVMCount,
 			r.KVMHardwareAccel, r.KubernetesVersion, r.OSImage, r.KernelVersion,
+			r.NodeTaints, r.NodeConditions,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 

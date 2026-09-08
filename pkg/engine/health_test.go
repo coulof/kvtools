@@ -30,9 +30,32 @@ func TestHealthAuditRules(t *testing.T) {
 					EvictionStrategy: &liveMigrate,
 					Domain: virtv1.DomainSpec{
 						CPU: &virtv1.CPU{
-							Model: "host-passthrough",
+							Cores:   4,
+							Sockets: 1,
+							Threads: 1,
+							Model:   "host-passthrough",
 						},
 						Devices: virtv1.Devices{
+							Disks: []virtv1.Disk{
+								{
+									Name: "disk-a",
+								},
+								{
+									Name: "disk-b",
+								},
+								{
+									Name: "disk-c",
+								},
+								{
+									Name: "disk-d",
+								},
+								{
+									Name: "cdrom0",
+									DiskDevice: virtv1.DiskDevice{
+										CDRom: &virtv1.CDRomTarget{},
+									},
+								},
+							},
 							Interfaces: []virtv1.Interface{
 								{
 									Name: "sriov-net",
@@ -62,9 +85,60 @@ func TestHealthAuditRules(t *testing.T) {
 								},
 							},
 						},
+						{
+							Name: "disk-a",
+							VolumeSource: virtv1.VolumeSource{
+								PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
+									PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "disk-a-pvc",
+									},
+								},
+							},
+						},
+						{
+							Name: "disk-b",
+							VolumeSource: virtv1.VolumeSource{
+								PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
+									PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "disk-b-pvc",
+									},
+								},
+							},
+						},
+						{
+							Name: "disk-c",
+							VolumeSource: virtv1.VolumeSource{
+								PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
+									PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "disk-c-pvc",
+									},
+								},
+							},
+						},
+						{
+							Name: "disk-d",
+							VolumeSource: virtv1.VolumeSource{
+								PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
+									PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "disk-d-pvc",
+									},
+								},
+							},
+						},
 					},
 				},
 			},
+		},
+	}
+
+	vmi1 := virtv1.VirtualMachineInstance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm-1",
+			Namespace: "default",
+			UID:       types.UID("uid-vm-1"),
+		},
+		Status: virtv1.VirtualMachineInstanceStatus{
+			Phase: virtv1.Running,
 		},
 	}
 
@@ -117,7 +191,8 @@ func TestHealthAuditRules(t *testing.T) {
 		},
 	}
 
-	// PVCs
+	// PVCs (large disks totaling > 500GiB for HLTH-013)
+	pvcStorage200Gi := resource.MustParse("200Gi")
 	pvcRWO := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rwo-pvc",
@@ -126,6 +201,22 @@ func TestHealthAuditRules(t *testing.T) {
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 		},
+	}
+	pvcA := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: "disk-a-pvc", Namespace: "default"},
+		Spec:       corev1.PersistentVolumeClaimSpec{Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: pvcStorage200Gi}}},
+	}
+	pvcB := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: "disk-b-pvc", Namespace: "default"},
+		Spec:       corev1.PersistentVolumeClaimSpec{Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: pvcStorage200Gi}}},
+	}
+	pvcC := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: "disk-c-pvc", Namespace: "default"},
+		Spec:       corev1.PersistentVolumeClaimSpec{Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: pvcStorage200Gi}}},
+	}
+	pvcD := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: "disk-d-pvc", Namespace: "default"},
+		Spec:       corev1.PersistentVolumeClaimSpec{Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: pvcStorage200Gi}}},
 	}
 
 	// Zombie PVC (HLTH-005)
@@ -183,6 +274,33 @@ func TestHealthAuditRules(t *testing.T) {
 	}
 	snapOld.SetCreationTimestamp(twentyDaysAgo)
 
+	// Low partition free space (HLTH-012)
+	fsListLow := &virtv1.VirtualMachineInstanceFileSystemList{
+		Items: []virtv1.VirtualMachineInstanceFileSystem{
+			{
+				MountPoint:     "/var/data",
+				DiskName:       "vda4",
+				FileSystemType: "ext4",
+				TotalBytes:     100 * 1024 * 1024 * 1024,
+				UsedBytes:      96 * 1024 * 1024 * 1024, // 4 GiB free (< 5 GiB & < 10%)
+			},
+		},
+	}
+
+	// Node under pressure (HLTH-016)
+	nodePressure := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "node-p1"},
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
+				{
+					Type:    corev1.NodeMemoryPressure,
+					Status:  corev1.ConditionTrue,
+					Message: "Node has insufficient memory",
+				},
+			},
+		},
+	}
+
 	// Node overcommit > 8:1 (HLTH-011)
 	nodeOvercommit := KVNodeRecord{
 		NodeName:            "node-1",
@@ -191,10 +309,14 @@ func TestHealthAuditRules(t *testing.T) {
 
 	rawData := &collector.RawData{
 		VMs:         []virtv1.VirtualMachine{vm1, vm2},
-		VMIs:        []virtv1.VirtualMachineInstance{vmi2},
-		PVCs:        []corev1.PersistentVolumeClaim{pvcRWO, pvcZombie},
+		VMIs:        []virtv1.VirtualMachineInstance{vmi1, vmi2},
+		PVCs:        []corev1.PersistentVolumeClaim{pvcRWO, pvcA, pvcB, pvcC, pvcD, pvcZombie},
+		Nodes:       []corev1.Node{nodePressure},
 		DataVolumes: []unstructured.Unstructured{dvFailed},
 		VMSnapshots: []unstructured.Unstructured{snapOld},
+		FileSystemList: map[string]*virtv1.VirtualMachineInstanceFileSystemList{
+			"default/test-vm-1": fsListLow,
+		},
 	}
 
 	healthFindings := RunHealthAudit(rawData, []KVNodeRecord{nodeOvercommit})
@@ -207,7 +329,8 @@ func TestHealthAuditRules(t *testing.T) {
 	expectedRules := []string{
 		"HLTH-001", "HLTH-002", "HLTH-003", "HLTH-004",
 		"HLTH-005", "HLTH-006", "HLTH-007", "HLTH-008",
-		"HLTH-009", "HLTH-010", "HLTH-011",
+		"HLTH-009", "HLTH-010", "HLTH-011", "HLTH-012",
+		"HLTH-013", "HLTH-014", "HLTH-015", "HLTH-016",
 	}
 
 	for _, r := range expectedRules {

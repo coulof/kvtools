@@ -13,7 +13,7 @@ import (
 	"github.com/coulof/kvtools/pkg/utils"
 )
 
-// RunHealthAudit executes all 11 built-in health and migration rules against the raw cluster data.
+// RunHealthAudit executes all built-in health, migration, and performance optimization rules.
 func RunHealthAudit(raw *collector.RawData, nodeRecords []KVNodeRecord) []KVHealthRecord {
 	var records []KVHealthRecord
 
@@ -209,6 +209,130 @@ func RunHealthAudit(raw *collector.RawData, nodeRecords []KVNodeRecord) []KVHeal
 				}
 			}
 		}
+
+		// HLTH-013: Disk I/O Performance Tip (INFO) - VM has >3 disks and size > 500 GiB without dedicated IOThread or multi-queue
+		totalDiskSizeGiB := 0.0
+		diskCount := 0
+		hasDedicatedIO := false
+		for _, disk := range vSpec.Domain.Devices.Disks {
+			if disk.DiskDevice.CDRom == nil {
+				diskCount++
+				if disk.DedicatedIOThread != nil && *disk.DedicatedIOThread {
+					hasDedicatedIO = true
+				}
+			}
+		}
+		for _, vol := range vSpec.Volumes {
+			pvcName := ""
+			if vol.PersistentVolumeClaim != nil {
+				pvcName = vol.PersistentVolumeClaim.ClaimName
+			}
+			if pvcName != "" {
+				if pvc, ok := pvcMap[fmt.Sprintf("%s/%s", vm.Namespace, pvcName)]; ok {
+					if q, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+						totalDiskSizeGiB += utils.QuantityToGiB(&q)
+					}
+				}
+			}
+		}
+		if diskCount > 3 && totalDiskSizeGiB > 500.0 && !hasDedicatedIO {
+			records = append(records, KVHealthRecord{
+				RuleID:       "HLTH-013",
+				Category:     "Performance Tip",
+				Severity:     "INFO",
+				ResourceKind: "VirtualMachine",
+				ResourceName: vm.Name,
+				Namespace:    vm.Namespace,
+				IssueSummary: fmt.Sprintf("VM has %d disks totaling %.0f GiB without dedicated IOThreads enabled", diskCount, totalDiskSizeGiB),
+				Remediation:  "Enable dedicatedIOThread on disk devices or configure blockMultiQueue for optimal I/O parallelism",
+			})
+		}
+
+		// HLTH-014: In-Memory / NUMA Performance Tip (INFO) - VM has >= 4 cores without guest NUMA topology configured
+		cores := uint32(1)
+		sockets := uint32(1)
+		threads := uint32(1)
+		if vSpec.Domain.CPU != nil {
+			if vSpec.Domain.CPU.Cores > 0 {
+				cores = vSpec.Domain.CPU.Cores
+			}
+			if vSpec.Domain.CPU.Sockets > 0 {
+				sockets = vSpec.Domain.CPU.Sockets
+			}
+			if vSpec.Domain.CPU.Threads > 0 {
+				threads = vSpec.Domain.CPU.Threads
+			}
+		}
+		totalVCPUs := cores * sockets * threads
+		hasNUMA := vSpec.Domain.CPU != nil && vSpec.Domain.CPU.NUMA != nil
+		if totalVCPUs >= 4 && !hasNUMA {
+			records = append(records, KVHealthRecord{
+				RuleID:       "HLTH-014",
+				Category:     "Performance Tip",
+				Severity:     "INFO",
+				ResourceKind: "VirtualMachine",
+				ResourceName: vm.Name,
+				Namespace:    vm.Namespace,
+				IssueSummary: fmt.Sprintf("VM has %d vCPUs configured without guest NUMA topology mapping", totalVCPUs),
+				Remediation:  "Configure domain.cpu.numa guestMappingPassthrough to align vCPU sockets with host NUMA nodes for reduced memory latency",
+			})
+		}
+
+		// HLTH-015: Connected Temporary CD-ROM / ISO (WARNING) - Running VM in non-system namespace has CD-ROM connected
+		if hasVMI && vmi.Status.Phase == virtv1.Running && !strings.HasPrefix(vm.Namespace, "kube-") {
+			for _, disk := range vSpec.Domain.Devices.Disks {
+				if disk.DiskDevice.CDRom != nil {
+					records = append(records, KVHealthRecord{
+						RuleID:       "HLTH-015",
+						Category:     "Hygiene",
+						Severity:     "WARNING",
+						ResourceKind: "VirtualMachine",
+						ResourceName: vm.Name,
+						Namespace:    vm.Namespace,
+						IssueSummary: fmt.Sprintf("Running VM has CD-ROM / ISO device '%s' attached", disk.Name),
+						Remediation:  "Disconnect temporary ISO/CD-ROM devices when installation is complete to avoid locking storage resources",
+					})
+				}
+			}
+		}
+	}
+
+	// HLTH-012: Low Guest Disk Space (WARNING) - Guest filesystem partition free space < 10% or < 5 GiB
+	for key, fsList := range raw.FileSystemList {
+		if fsList == nil {
+			continue
+		}
+		parts := strings.SplitN(key, "/", 2)
+		ns := parts[0]
+		vmName := ""
+		if len(parts) > 1 {
+			vmName = parts[1]
+		}
+
+		for _, fs := range fsList.Items {
+			if fs.TotalBytes <= 0 {
+				continue
+			}
+			freeBytes := int64(fs.TotalBytes - fs.UsedBytes)
+			if freeBytes < 0 {
+				freeBytes = 0
+			}
+			freeGiB := utils.BytesToGiB(freeBytes)
+			freePct := float64(freeBytes) / float64(fs.TotalBytes) * 100.0
+
+			if freePct < 10.0 || freeGiB < 5.0 {
+				records = append(records, KVHealthRecord{
+					RuleID:       "HLTH-012",
+					Category:     "Storage Space",
+					Severity:     "WARNING",
+					ResourceKind: "VirtualMachine",
+					ResourceName: vmName,
+					Namespace:    ns,
+					IssueSummary: fmt.Sprintf("Guest partition '%s' on %s has only %.1f GiB free (%.1f%%)", fs.MountPoint, fs.DiskName, freeGiB, freePct),
+					Remediation:  "Expand underlying PVC or clean up guest filesystem to avoid application crashes due to full disk",
+				})
+			}
+		}
 	}
 
 	// HLTH-005: Storage Zombie (WARNING) - Orphaned PVC matching KubeVirt pattern without an active VM/VMI
@@ -313,6 +437,26 @@ func RunHealthAudit(raw *collector.RawData, nodeRecords []KVNodeRecord) []KVHeal
 				IssueSummary: fmt.Sprintf("Node '%s' has vCPU overcommit ratio of %.2f:1 (> 8.0:1)", nr.NodeName, nr.VCPUOvercommitRatio),
 				Remediation:  "Rebalance VMs across cluster nodes or add compute nodes to decrease overcommit ratio",
 			})
+		}
+	}
+
+	// HLTH-016: Node Under Pressure (WARNING) - Node reporting MemoryPressure, DiskPressure, or PIDPressure
+	for _, node := range raw.Nodes {
+		for _, cond := range node.Status.Conditions {
+			if cond.Status == corev1.ConditionTrue {
+				if cond.Type == corev1.NodeMemoryPressure || cond.Type == corev1.NodeDiskPressure || cond.Type == corev1.NodePIDPressure {
+					records = append(records, KVHealthRecord{
+						RuleID:       "HLTH-016",
+						Category:     "Node Health",
+						Severity:     "WARNING",
+						ResourceKind: "Node",
+						ResourceName: node.Name,
+						Namespace:    "-",
+						IssueSummary: fmt.Sprintf("Node '%s' is under %s: %s", node.Name, cond.Type, cond.Message),
+						Remediation:  "Investigate host node resource consumption, reclaim disk/memory, or drain node",
+					})
+				}
+			}
 		}
 	}
 

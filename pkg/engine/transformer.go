@@ -118,6 +118,20 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			hasKVM = true
 		}
 
+		var taintList []string
+		for _, t := range node.Spec.Taints {
+			taintList = append(taintList, fmt.Sprintf("%s=%s:%s", t.Key, t.Value, t.Effect))
+		}
+		taintsStr := strings.Join(taintList, ", ")
+
+		var condList []string
+		for _, c := range node.Status.Conditions {
+			if c.Status == corev1.ConditionTrue && c.Type != corev1.NodeReady {
+				condList = append(condList, string(c.Type))
+			}
+		}
+		condsStr := strings.Join(condList, ", ")
+
 		report.Node = append(report.Node, KVNodeRecord{
 			NodeName:            node.Name,
 			Status:              status,
@@ -133,6 +147,8 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			KubernetesVersion:   node.Status.NodeInfo.KubeletVersion,
 			OSImage:             node.Status.NodeInfo.OSImage,
 			KernelVersion:       node.Status.NodeInfo.KernelVersion,
+			NodeTaints:          taintsStr,
+			NodeConditions:      condsStr,
 		})
 	}
 	sort.Slice(report.Node, func(i, j int) bool {
@@ -318,26 +334,57 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		disksCount := len(vSpec.Domain.Devices.Disks)
 		nicsCount := len(vSpec.Domain.Devices.Interfaces)
 
+		// Affinity rules summary
+		var affinityParts []string
+		if vSpec.Affinity != nil {
+			if vSpec.Affinity.PodAntiAffinity != nil {
+				affinityParts = append(affinityParts, "PodAntiAffinity")
+			}
+			if vSpec.Affinity.PodAffinity != nil {
+				affinityParts = append(affinityParts, "PodAffinity")
+			}
+			if vSpec.Affinity.NodeAffinity != nil {
+				affinityParts = append(affinityParts, "NodeAffinity")
+			}
+		}
+		if len(vSpec.NodeSelector) > 0 {
+			affinityParts = append(affinityParts, "NodeSelector")
+		}
+		affinityStr := strings.Join(affinityParts, ", ")
+
+		cpuHotplugMax := uint32(0)
+		if vSpec.Domain.CPU != nil && vSpec.Domain.CPU.MaxSockets > 0 {
+			cpuHotplugMax = vSpec.Domain.CPU.MaxSockets
+		}
+
+		memHotplugMaxGiB := 0.0
+		if vSpec.Domain.Memory != nil && vSpec.Domain.Memory.MaxGuest != nil {
+			memHotplugMaxGiB = utils.QuantityToGiB(vSpec.Domain.Memory.MaxGuest)
+		}
+
 		// kvInfo
 		report.Info = append(report.Info, KVInfoRecord{
-			VMName:          vm.Name,
-			Namespace:       vm.Namespace,
-			PowerState:      powerState,
-			RunStrategy:     runStrategy,
-			Node:            nodeName,
-			IPAddress:       ipAddr,
-			GuestOS:         guestOS,
-			FirmwareBoot:    firmwareBoot,
-			TPMEnabled:      tpmEnabled,
-			CPUsSummary:     cpusSummary,
-			MemoryConfigGiB: guestRAMGiB,
-			DisksCount:      disksCount,
-			NICsCount:       nicsCount,
-			CreatedTime:     createdTime,
-			Uptime:          uptime,
-			Labels:          labelsStr,
-			Annotations:     annotStr,
-			UID:             string(vm.UID),
+			VMName:              vm.Name,
+			Namespace:           vm.Namespace,
+			PowerState:          powerState,
+			RunStrategy:         runStrategy,
+			Node:                nodeName,
+			IPAddress:           ipAddr,
+			GuestOS:             guestOS,
+			FirmwareBoot:        firmwareBoot,
+			TPMEnabled:          tpmEnabled,
+			CPUsSummary:         cpusSummary,
+			CPUHotplugMax:       cpuHotplugMax,
+			MemoryConfigGiB:     guestRAMGiB,
+			MemoryHotplugMaxGiB: memHotplugMaxGiB,
+			DisksCount:          disksCount,
+			NICsCount:           nicsCount,
+			AffinityRules:       affinityStr,
+			CreatedTime:         createdTime,
+			Uptime:              uptime,
+			Labels:              labelsStr,
+			Annotations:         annotStr,
+			UID:                 string(vm.UID),
 		})
 
 		// kvCPU

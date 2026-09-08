@@ -38,24 +38,27 @@ type ReportSummary struct {
 
 // KVInfoRecord represents a row in Sheet 1 (kvInfo).
 type KVInfoRecord struct {
-	VMName           string  `json:"vmName"`
-	Namespace        string  `json:"namespace"`
-	PowerState       string  `json:"powerState"`
-	RunStrategy      string  `json:"runStrategy"`
-	Node             string  `json:"node"`
-	IPAddress        string  `json:"ipAddress"`
-	GuestOS          string  `json:"guestOS"`
-	FirmwareBoot     string  `json:"firmwareBoot"`
-	TPMEnabled       bool    `json:"tpmEnabled"`
-	CPUsSummary      string  `json:"cpusSummary"`
-	MemoryConfigGiB  float64 `json:"memoryConfigGiB"`
-	DisksCount       int     `json:"disksCount"`
-	NICsCount        int     `json:"nicsCount"`
-	CreatedTime      string  `json:"createdTime"`
-	Uptime           string  `json:"uptime"`
-	Labels           string  `json:"labels"`
-	Annotations      string  `json:"annotations"`
-	UID              string  `json:"uid"`
+	VMName              string  `json:"vmName"`
+	Namespace           string  `json:"namespace"`
+	PowerState          string  `json:"powerState"`
+	RunStrategy         string  `json:"runStrategy"`
+	Node                string  `json:"node"`
+	IPAddress           string  `json:"ipAddress"`
+	GuestOS             string  `json:"guestOS"`
+	FirmwareBoot        string  `json:"firmwareBoot"`
+	TPMEnabled          bool    `json:"tpmEnabled"`
+	CPUsSummary         string  `json:"cpusSummary"`
+	CPUHotplugMax       uint32  `json:"cpuHotplugMax"`
+	MemoryConfigGiB     float64 `json:"memoryConfigGiB"`
+	MemoryHotplugMaxGiB float64 `json:"memoryHotplugMaxGiB"`
+	DisksCount          int     `json:"disksCount"`
+	NICsCount           int     `json:"nicsCount"`
+	AffinityRules       string  `json:"affinityRules"`
+	CreatedTime         string  `json:"createdTime"`
+	Uptime              string  `json:"uptime"`
+	Labels              string  `json:"labels"`
+	Annotations         string  `json:"annotations"`
+	UID                 string  `json:"uid"`
 }
 
 // KVCPURecord represents a row in Sheet 2 (kvCPU).
@@ -172,20 +175,22 @@ type KVGuestAgentRecord struct {
 
 // KVNodeRecord represents a row in Sheet 10 (kvNode).
 type KVNodeRecord struct {
-	NodeName              string  `json:"nodeName"`
-	Status                string  `json:"status"`
-	TotalPhysicalCores    int64   `json:"totalPhysicalCores"`
-	TotalRAMGiB           float64 `json:"totalRAMGiB"`
-	AllocatableCPU        float64 `json:"allocatableCPU"`
-	AllocatableRAMGiB     float64 `json:"allocatableRAMGiB"`
-	AllocatedVMvCPUs      float64 `json:"allocatedVMvCPUs"`
-	AllocatedVMRAMGiB     float64 `json:"allocatedVMRAMGiB"`
-	VCPUOvercommitRatio   float64 `json:"vcpuOvercommitRatio"`
-	ActiveVMCount         int     `json:"activeVMCount"`
-	KVMHardwareAccel      bool    `json:"kvmHardwareAccel"`
-	KubernetesVersion     string  `json:"kubernetesVersion"`
-	OSImage               string  `json:"osImage"`
-	KernelVersion         string  `json:"kernelVersion"`
+	NodeName            string  `json:"nodeName"`
+	Status              string  `json:"status"`
+	TotalPhysicalCores  int64   `json:"totalPhysicalCores"`
+	TotalRAMGiB         float64 `json:"totalRAMGiB"`
+	AllocatableCPU      float64 `json:"allocatableCPU"`
+	AllocatableRAMGiB   float64 `json:"allocatableRAMGiB"`
+	AllocatedVMvCPUs    float64 `json:"allocatedVMvCPUs"`
+	AllocatedVMRAMGiB   float64 `json:"allocatedVMRAMGiB"`
+	VCPUOvercommitRatio float64 `json:"vcpuOvercommitRatio"`
+	ActiveVMCount       int     `json:"activeVMCount"`
+	KVMHardwareAccel    bool    `json:"kvmHardwareAccel"`
+	KubernetesVersion   string  `json:"kubernetesVersion"`
+	OSImage             string  `json:"osImage"`
+	KernelVersion       string  `json:"kernelVersion"`
+	NodeTaints          string  `json:"nodeTaints"`
+	NodeConditions      string  `json:"nodeConditions"`
 }
 
 // KVStoragePoolRecord represents a row in Sheet 11 (kvStoragePool).

@@ -149,6 +149,8 @@ make build
 
 ## Roadmap
 
+- [ ] **Embedded Lightweight Web UI (`kvtools serve` / `kvtools ui`)**:
+  - Single-binary embedded Web UI (`//go:embed`) providing an interactive in-browser dashboard for exploring inventory, VM topologies, and `kvHealth` audit findings without external dependencies.
 - [ ] **Advanced `kvHealth` Audit Rules**:
   - **Duplicate MAC Detection**: Detect duplicate MAC address assignments across running interfaces and VM specs.
   - **Windows Hyper-V Enlightenments**: Flag Windows guests missing hypervisor enlightenments (`synic`, `relaxed`, `spinlocks`, `vapic`).
