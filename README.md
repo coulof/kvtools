@@ -1,7 +1,7 @@
 # kvtools (RVTools for KubeVirt)
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/coulof/kvtools)](https://golang.org)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 `kvtools` is a fast, concurrent CLI utility and `kubectl` plugin (`kubectl-kvtools`) that inspects, audits, and exports comprehensive KubeVirt cluster inventory to a styled, multi-tab Excel (`.xlsx`) workbook, JSON, CSV, or formatted terminal tables—mirroring the operational depth and health audits of VMware's RVTools.
 
@@ -165,4 +165,4 @@ make build
 
 ## License
 
-Apache License 2.0.
+MIT License. See [LICENSE](LICENSE) for details.
