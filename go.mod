@@ -1,6 +1,6 @@
 module github.com/coulof/kvtools
 
-go 1.25.0
+go 1.27
 
 require (
 	github.com/olekukonko/tablewriter v0.0.5
