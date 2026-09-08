@@ -1,0 +1,22 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test exports and artifacts
+*.xlsx
+*.csv
+*.json
+!test/fixtures/*.yaml
+!test/fixtures/*.json
+!.krew.yaml
+
+# OS and IDE files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

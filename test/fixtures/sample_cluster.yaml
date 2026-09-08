@@ -1,0 +1,47 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: demo-vm-01
+  namespace: default
+  labels:
+    app: webserver
+spec:
+  running: true
+  template:
+    spec:
+      domain:
+        cpu:
+          cores: 2
+          sockets: 2
+          threads: 1
+          model: host-model
+        memory:
+          guest: 8Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+      volumes:
+        - name: rootdisk
+          persistentVolumeClaim:
+            claimName: demo-vm-01-pvc
+      networks:
+        - name: default
+          pod: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-vm-01-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  storageClassName: longhorn
