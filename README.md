@@ -11,7 +11,7 @@ Compatible with **SUSE Harvester**, **OpenShift Virtualization**, **SUSE Virtual
 
 ## Features
 
-- 📑 **13 Color-Coded Excel Tabs**: `kvInfo`, `kvCPU`, `kvMemory`, `kvDisk`, `kvPartition`, `kvNetwork`, `kvCD`, `kvSnapshot`, `kvGuestAgent`, `kvNode`, `kvStoragePool`, `kvHardware`, and `kvHealth`.
+- 📑 **13 Multi-Tab Excel Sheets**: `kvInfo`, `kvCPU`, `kvMemory`, `kvDisk`, `kvPartition`, `kvNetwork`, `kvCD`, `kvSnapshot`, `kvGuestAgent`, `kvNode`, `kvStoragePool`, `kvHardware`, and `kvHealth`.
 - 🔍 **`kvHealth` Best-Practice Engine**: 11 deterministic audit rules detecting live migration blockers, storage zombies, snapshot sprawl, CPU CFS throttling risks, and node vCPU overcommit imbalance.
 - ⚡ **High Concurrency & Graceful Degradation**: Concurrently queries cluster objects and guest agent subresources (`/guestosinfo`, `/filesystemlist`) with worker pools; runs safely on clusters lacking optional CRDs (CDI, Snapshot, Multus).
 - 📦 **Zero Runtime Dependencies**: Compiled to a single static binary.
@@ -21,21 +21,21 @@ Compatible with **SUSE Harvester**, **OpenShift Virtualization**, **SUSE Virtual
 
 ## 13 Multi-Tab Inventory Breakdown
 
-| Sheet | Tab Color | Description |
-|---|---|---|
-| **`kvInfo`** | Jungle Green (`#2ECC71`) | Primary VM inventory, power state, node placement, guest OS, firmware/boot, TPM, uptime, and UID. |
-| **`kvCPU`** | Sky Blue (`#3498DB`) | Cores, sockets, threads, vCPUs, CPU model, dedicated placement, NUMA, requests, and limits. |
-| **`kvMemory`** | Royal Blue (`#2980B9`) | Guest RAM, requests, limits, launcher overhead, hugepages, and ballooning. |
-| **`kvDisk`** | Amber (`#F39C12`) | Disks, PVCs, DataVolumes, StorageClasses, provisioned sizes, volume modes, bus types, and CSI drivers. |
-| **`kvPartition`** | Orange (`#E67E22`) | Guest OS filesystem mount points, filesystem types, capacity, used space, and free %. |
-| **`kvNetwork`** | Teal (`#1ABC9C`) | Interfaces, Multus networks, binding modes (masquerade/bridge/sriov), MACs, and Pod/Guest IPs. |
-| **`kvCD`** | Purple (`#9B59B6`) | Attached CD-ROMs, container disks, ISOs, boot orders, and mount states. |
-| **`kvSnapshot`** | Coral (`#E74C3C`) | VM snapshots, volume snapshots, readiness, age, and restorable capacity. |
-| **`kvGuestAgent`** | Steel (`#34495E`) | QEMU guest agent connectivity, agent version, hostname, guest kernel, and timezone. |
-| **`kvNode`** | Dark Slate (`#2C3E50`) | Node physical cores, allocatable resources, allocated VM vCPUs/RAM, and vCPU overcommit ratio. |
-| **`kvStoragePool`** | Dark Amber (`#D35400`) | StorageClasses, provisioners, reclaim policies, binding modes, and bound PVC totals. |
-| **`kvHardware`** | Brown (`#795548`) | PCI passthrough devices, GPU/vGPU allocations, SR-IOV NICs, and host devices. |
-| **`kvHealth`** | Crimson (`#C0392B`) | Automated migration blockers, storage zombies, and sizing risk findings. |
+| Sheet | Description |
+|---|---|
+| **`kvInfo`** | Primary VM inventory, power state, node placement, guest OS, firmware/boot, TPM, uptime, and UID. |
+| **`kvCPU`** | Cores, sockets, threads, vCPUs, CPU model, dedicated placement, NUMA, requests, and limits. |
+| **`kvMemory`** | Guest RAM, requests, limits, launcher overhead, hugepages, and ballooning. |
+| **`kvDisk`** | Disks, PVCs, DataVolumes, StorageClasses, provisioned sizes, volume modes, bus types, and CSI drivers. |
+| **`kvPartition`** | Guest OS filesystem mount points, filesystem types, capacity, used space, and free %. |
+| **`kvNetwork`** | Interfaces, Multus networks, binding modes (masquerade/bridge/sriov), MACs, and Pod/Guest IPs. |
+| **`kvCD`** | Attached CD-ROMs, container disks, ISOs, boot orders, and mount states. |
+| **`kvSnapshot`** | VM snapshots, volume snapshots, readiness, age, and restorable capacity. |
+| **`kvGuestAgent`** | QEMU guest agent connectivity, agent version, hostname, guest kernel, and timezone. |
+| **`kvNode`** | Node physical cores, allocatable resources, allocated VM vCPUs/RAM, and vCPU overcommit ratio. |
+| **`kvStoragePool`** | StorageClasses, provisioners, reclaim policies, binding modes, and bound PVC totals. |
+| **`kvHardware`** | PCI passthrough devices, GPU/vGPU allocations, SR-IOV NICs, and host devices. |
+| **`kvHealth`** | Automated migration blockers, storage zombies, and sizing risk findings. |
 
 ---
 
@@ -52,11 +52,6 @@ make build
 ### Install to `$GOPATH/bin`
 ```bash
 make install
-```
-
-### Kubectl Plugin (via Krew)
-```bash
-kubectl krew install --manifest=.krew.yaml
 ```
 
 ---
@@ -149,6 +144,14 @@ make vet
 # Build local binaries
 make build
 ```
+
+---
+
+## Roadmap
+
+- [ ] **Krew Plugin Index**: Publish `kubectl-kvtools` to the official [Krew index](https://krew.sigs.k8s.io/) (`kubectl krew install kvtools`).
+- [ ] **Interactive HTML Exporter**: Generate single-file, self-contained interactive web dashboards.
+- [ ] **Migration Sizing Automation**: Direct integration and artifact feed into migration sizing utilities (such as `harvester-sizer`).
 
 ---
 
