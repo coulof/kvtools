@@ -9,7 +9,7 @@ import (
 
 var (
 	// Version is the current semantic release version of kvtools.
-	Version = "v0.1.0-dev"
+	Version = "v0.1.0"
 	// GitCommit is the commit SHA injected during build.
 	GitCommit = "unknown"
 	// BuildDate is the RFC3339 build timestamp injected during build.
