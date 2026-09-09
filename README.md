@@ -15,6 +15,10 @@
 
 kvtools is a CLI utility that exports KubeVirt cluster inventory to Excel, JSON, CSV, or a terminal table, and runs a set of health checks against it. Works with Harvester, SUSE Virtualization, OpenShift Virtualization, and upstream KubeVirt.
 
+<p align="center">
+  <img src="assets/terminal-preview.png" alt="KVTools CLI and Health Audit Preview" width="800">
+</p>
+
 ---
 
 ## Features
@@ -48,17 +52,29 @@ kvtools is a CLI utility that exports KubeVirt cluster inventory to Excel, JSON,
 
 ## Installation
 
+### Pre-compiled Binaries (Recommended)
+
+Download the latest release for your platform from the [GitHub Releases](https://github.com/coulof/kvtools/releases) page:
+
+```bash
+# Linux (amd64)
+curl -LO https://github.com/coulof/kvtools/releases/latest/download/kvtools_v0.1.0_linux_amd64.tar.gz
+tar -xzf kvtools_v0.1.0_linux_amd64.tar.gz
+sudo mv kvtools /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -LO https://github.com/coulof/kvtools/releases/latest/download/kvtools_v0.1.0_darwin_arm64.tar.gz
+tar -xzf kvtools_v0.1.0_darwin_arm64.tar.gz
+sudo mv kvtools /usr/local/bin/
+```
+
 ### From Source
+
 ```bash
 git clone https://github.com/coulof/kvtools.git
 cd kvtools
 make build
 # Binary is generated in bin/kvtools
-```
-
-### Install to `$GOPATH/bin`
-```bash
-make install
 ```
 
 ---
