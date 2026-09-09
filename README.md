@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>RVTools for KubeVirt — Comprehensive Virtualization Inventory & Health Auditing</strong>
+  <strong>RVTools-style inventory and health audit tool for KubeVirt clusters.</strong>
 </p>
 
 <p align="center">
@@ -13,39 +13,36 @@
 
 ---
 
-**KVTools** is a fast, concurrent CLI utility and `kubectl` plugin (`kubectl-kvtools`) that inspects, audits, and exports comprehensive KubeVirt cluster inventory to a styled, multi-tab Excel (`.xlsx`) workbook, JSON, CSV, or formatted terminal tables—mirroring the operational depth and health audits of VMware's RVTools.
-
-Compatible with **SUSE Harvester**, **OpenShift Virtualization**, **SUSE Virtualization**, and upstream **KubeVirt**.
+kvtools is a CLI / kubectl plugin that exports KubeVirt cluster inventory to Excel, JSON, CSV, or a terminal table, and runs a set of health checks against it. Works with Harvester, SUSE Virtualization, OpenShift Virtualization, and upstream KubeVirt.
 
 ---
 
 ## Features
 
-- 📑 **13 Multi-Tab Excel Sheets**: `kvInfo`, `kvCPU`, `kvMemory`, `kvDisk`, `kvPartition`, `kvNetwork`, `kvCD`, `kvSnapshot`, `kvGuestAgent`, `kvNode`, `kvStoragePool`, `kvHardware`, and `kvHealth`.
-- 🔍 **`kvHealth` Best-Practice Engine**: 11 deterministic audit rules detecting live migration blockers, storage zombies, snapshot sprawl, CPU CFS throttling risks, and node vCPU overcommit imbalance.
-- ⚡ **High Concurrency & Graceful Degradation**: Concurrently queries cluster objects and guest agent subresources (`/guestosinfo`, `/filesystemlist`) with worker pools; runs safely on clusters lacking optional CRDs (CDI, Snapshot, Multus).
-- 📦 **Zero Runtime Dependencies**: Compiled to a single static binary.
-- 🔌 **Dual Mode Execution**: Run directly as `kvtools` or as `kubectl kvtools`.
+- 📑 **13 Excel Sheets**: `kvInfo`, `kvCPU`, `kvMemory`, `kvDisk`, `kvPartition`, `kvNetwork`, `kvCD`, `kvSnapshot`, `kvGuestAgent`, `kvNode`, `kvStoragePool`, `kvHardware`, and `kvHealth`.
+- 🔍 **`kvHealth` Engine**: Built-in rules for migration blockers, storage zombies, snapshot sprawl, and sizing risks.
+- ⚡ **Concurrency & Fallback**: Queries cluster objects and guest agent subresources in parallel; handles missing optional CRDs (CDI, Snapshot, Multus).
+- 📦 **Zero Dependencies**: Single static binary.
 
 ---
 
-## 13 Multi-Tab Inventory Breakdown
+## 13 Inventory Sheets
 
 | Sheet | Description |
 |---|---|
-| **`kvInfo`** | Primary VM inventory, power state, node placement, guest OS, firmware/boot, TPM, uptime, and UID. |
+| **`kvInfo`** | VM inventory, power state, node placement, guest OS, firmware/boot, TPM, uptime, and UID. |
 | **`kvCPU`** | Cores, sockets, threads, vCPUs, CPU model, dedicated placement, NUMA, requests, and limits. |
 | **`kvMemory`** | Guest RAM, requests, limits, launcher overhead, hugepages, and ballooning. |
 | **`kvDisk`** | Disks, PVCs, DataVolumes, StorageClasses, provisioned sizes, volume modes, bus types, and CSI drivers. |
 | **`kvPartition`** | Guest OS filesystem mount points, filesystem types, capacity, used space, and free %. |
-| **`kvNetwork`** | Interfaces, Multus networks, binding modes (masquerade/bridge/sriov), MACs, and Pod/Guest IPs. |
+| **`kvNetwork`** | Interfaces, Multus networks, binding modes (masquerade/bridge/sriov), MACs, and IPs. |
 | **`kvCD`** | Attached CD-ROMs, container disks, ISOs, boot orders, and mount states. |
 | **`kvSnapshot`** | VM snapshots, volume snapshots, readiness, age, and restorable capacity. |
 | **`kvGuestAgent`** | QEMU guest agent connectivity, agent version, hostname, guest kernel, and timezone. |
 | **`kvNode`** | Node physical cores, allocatable resources, allocated VM vCPUs/RAM, and vCPU overcommit ratio. |
 | **`kvStoragePool`** | StorageClasses, provisioners, reclaim policies, binding modes, and bound PVC totals. |
 | **`kvHardware`** | PCI passthrough devices, GPU/vGPU allocations, SR-IOV NICs, and host devices. |
-| **`kvHealth`** | Automated migration blockers, storage zombies, and sizing risk findings. |
+| **`kvHealth`** | Migration blockers, storage zombies, and sizing risk findings. |
 
 ---
 
@@ -56,7 +53,7 @@ Compatible with **SUSE Harvester**, **OpenShift Virtualization**, **SUSE Virtual
 git clone https://github.com/coulof/kvtools.git
 cd kvtools
 make build
-# Binary is generated in bin/kvtools and bin/kubectl-kvtools
+# Binary is generated in bin/kvtools
 ```
 
 ### Install to `$GOPATH/bin`
@@ -68,7 +65,7 @@ make install
 
 ## Usage & Examples
 
-### 1. Export Full Cluster to Excel (`.xlsx`)
+### 1. Export Cluster to Excel (`.xlsx`)
 ```bash
 # Auto-names: kvtools_<cluster>_<timestamp>.xlsx
 kvtools
@@ -77,7 +74,7 @@ kvtools
 kvtools -A -o excel -f ./cluster-inventory.xlsx
 ```
 
-### 2. Run Health & Migration Readiness Audit in Terminal
+### 2. Run Health Audit in Terminal
 ```bash
 kvtools health
 # Or
@@ -86,11 +83,11 @@ kvtools --health-only
 
 ### 3. Display Terminal Table for Specific Sheet
 ```bash
-# View VM summary inventory
-kvtools -o table kvInfo
+# View VM inventory
+kvtools kvInfo
 
-# View compute node resource allocation & overcommit
-kvtools -o table kvNode
+# View compute node allocation and overcommit
+kvtools kvNode
 ```
 
 ### 4. Filter by Namespace
@@ -105,6 +102,11 @@ kvtools -A -o json > inventory.json
 
 # Export all 13 sheets to separate CSV files
 kvtools -A -o csv -f ./csv-exports/
+```
+
+### 6. Merge Multiple Excel Exports
+```bash
+kvtools merge cluster1.xlsx cluster2.xlsx -o merged-inventory.xlsx
 ```
 
 ---
@@ -136,9 +138,14 @@ kvtools -A -o csv -f ./csv-exports/
 - **`HLTH-006` (WARNING)**: CDI DataVolume in `Failed` or stuck `ImportInProgress` state (> 2 hours).
 - **`HLTH-007` (WARNING)**: Running VM without active `qemu-guest-agent` connectivity.
 - **`HLTH-008` (WARNING)**: `VirtualMachineSnapshot` age exceeding 14 days (snapshot sprawl).
-- **`HLTH-009` (WARNING)**: VM CPU limits exceeding 4× CPU requests (CFS throttling risk).
+- **`HLTH-009` (WARNING)**: VM CPU limits exceeding 4x CPU requests (CFS throttling risk).
 - **`HLTH-010` (CRITICAL)**: VM memory limits equal to memory request with 0 overhead margin (OOM risk).
 - **`HLTH-011` (WARNING)**: Node vCPU overcommit ratio exceeding 8:1.
+- **`HLTH-012` (WARNING)**: Guest partition free space < 10% or < 5 GiB.
+- **`HLTH-013` (INFO)**: VM has > 3 disks and > 500 GiB without dedicated IOThreads.
+- **`HLTH-014` (INFO)**: VM has >= 4 cores without guest NUMA topology configured.
+- **`HLTH-015` (WARNING)**: Running VM has CD-ROM / ISO device attached.
+- **`HLTH-016` (WARNING)**: Host node reporting memory, disk, or PID pressure.
 
 ---
 
@@ -159,8 +166,8 @@ make build
 
 ## Roadmap
 
-- [ ] **Embedded Lightweight Web UI (`kvtools serve` / `kvtools ui`)**:
-  - Single-binary embedded Web UI (`//go:embed`) providing an interactive in-browser dashboard for exploring inventory, VM topologies, and `kvHealth` audit findings without external dependencies.
+- [ ] **Embedded Web UI (`kvtools serve` / `kvtools ui`)**:
+  - Embedded Web UI (`//go:embed`) providing an in-browser dashboard for exploring inventory and `kvHealth` audit findings.
 - [ ] **Advanced `kvHealth` Audit Rules**:
   - **Duplicate MAC Detection**: Detect duplicate MAC address assignments across running interfaces and VM specs.
   - **Windows Hyper-V Enlightenments**: Flag Windows guests missing hypervisor enlightenments (`synic`, `relaxed`, `spinlocks`, `vapic`).
@@ -170,8 +177,8 @@ make build
   - **IOThreads & VirtIO-RNG Tuning**: Identify high-throughput disk workloads lacking dedicated IO threads or missing entropy devices.
 - [ ] **Additional Inventory Sheets**:
   - **`kvMigration`**: Live migration history, migration durations, source/target nodes, and failure reasons.
-  - **`kvEvents`**: Aggregated VM and virt-launcher warning events (OOMKills, scheduling failures, disk attachment timeouts) over the last 24h.
-- [ ] **Krew Plugin Index**: Publish `kubectl-kvtools` to the official [Krew index](https://krew.sigs.k8s.io/) (`kubectl krew install kvtools`).
+  - **`kvEvents`**: Aggregated VM warning events over the last 24h.
+- [ ] **Krew Plugin Index**: Publish `kubectl-kvtools` to the official Krew index (`kubectl krew install kvtools`).
 
 ---
 
