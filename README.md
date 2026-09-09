@@ -13,7 +13,7 @@
 
 ---
 
-kvtools is a CLI / kubectl plugin that exports KubeVirt cluster inventory to Excel, JSON, CSV, or a terminal table, and runs a set of health checks against it. Works with Harvester, SUSE Virtualization, OpenShift Virtualization, and upstream KubeVirt.
+kvtools is a CLI utility that exports KubeVirt cluster inventory to Excel, JSON, CSV, or a terminal table, and runs a set of health checks against it. Works with Harvester, SUSE Virtualization, OpenShift Virtualization, and upstream KubeVirt.
 
 ---
 
@@ -178,7 +178,6 @@ make build
 - [ ] **Additional Inventory Sheets**:
   - **`kvMigration`**: Live migration history, migration durations, source/target nodes, and failure reasons.
   - **`kvEvents`**: Aggregated VM warning events over the last 24h.
-- [ ] **Krew Plugin Index**: Publish `kubectl-kvtools` to the official Krew index (`kubectl krew install kvtools`).
 
 ---
 

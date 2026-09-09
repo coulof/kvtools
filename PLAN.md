@@ -1,13 +1,13 @@
 # Engineering Implementation Plan: `kvtools` (RVTools for KubeVirt)
 
-This plan provides a complete architecture, technical specification, and step-by-step implementation guide to build `kvtools`—a standalone CLI and `kubectl` plugin written in Go that extracts, audits, and exports comprehensive KubeVirt cluster inventory to multi-tab Excel (`.xlsx`), JSON, and terminal tables, matching the structural style and operational depth of RVTools.
+This plan provides a complete architecture, technical specification, and step-by-step implementation guide to build `kvtools`—a standalone CLI utility written in Go that extracts, audits, and exports comprehensive KubeVirt cluster inventory to multi-tab Excel (`.xlsx`), JSON, and terminal tables, matching the structural style and operational depth of RVTools.
 
 ---
 
 ## 1. Project Overview & Architecture
 
 ### 1.1 Goal
-Create a fast, concurrent, and resilient CLI tool (`kvtools` / `kubectl-kvtools`) that connects to any Kubernetes cluster running KubeVirt (Harvester, OpenShift Virtualization, SUSE Virtualization, or upstream KubeVirt), inspects all VM/VMI resources, nodes, storage, networks, snapshots, and guest agent metrics, runs health/hygiene audits (`kvHealth`), and produces a styled, multi-tab Excel workbook identical in spirit to RVTools.
+Create a fast, concurrent, and resilient CLI tool (`kvtools`) that connects to any Kubernetes cluster running KubeVirt (Harvester, OpenShift Virtualization, SUSE Virtualization, or upstream KubeVirt), inspects all VM/VMI resources, nodes, storage, networks, snapshots, and guest agent metrics, runs health/hygiene audits (`kvHealth`), and produces a styled, multi-tab Excel workbook identical in spirit to RVTools.
 
 ### 1.2 Core Design Principles
 1. **Zero Runtime Dependencies**: Compiled to a single static Go binary. Compatible with standard `kubeconfig` and in-cluster service accounts.
@@ -19,12 +19,11 @@ Create a fast, concurrent, and resilient CLI tool (`kvtools` / `kubectl-kvtools`
 
 ## 2. CLI Interface & Flags
 
-Using `spf13/cobra`, the binary can run standalone (`kvtools`) or as a `kubectl` plugin (`kubectl kvtools`):
+Using `spf13/cobra`, the binary runs as a standalone CLI (`kvtools`):
 
 ```bash
 # Basic usage (all namespaces, exports to auto-named Excel file)
 kvtools [flags]
-kubectl kvtools [flags]
 
 # Common execution patterns
 kvtools -A -o excel --output-file ./kvtools-inventory.xlsx
@@ -414,11 +413,11 @@ Using `github.com/xuri/excelize/v2`:
 - [ ] Implement CLI table output (`tablewriter`) for terminal viewing.
 - [ ] Implement JSON output (`--output json`).
 
-### Milestone 5: Polishing, Testing & Krew Plugin (Days 9–10)
+### Milestone 5: Polishing, Testing & Packaging (Days 9–10)
 - [ ] Add unit tests with fake client and mocked manifests in `test/fixtures/`.
 - [ ] Test on live Harvester / OpenShift Virtualization / KubeVirt cluster.
 - [ ] Add auto-fit column width calculation and Excel styling refinements.
-- [ ] Write documentation, `Makefile` build targets, and `kubectl` krew plugin manifest (`.krew.yaml`).
+- [ ] Write documentation and `Makefile` build targets.
 
 ---
 

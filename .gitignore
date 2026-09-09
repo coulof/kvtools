@@ -11,9 +11,10 @@ bin/
 *.csv
 *.json
 *.pdf
+*.png
+!assets/*.png
 !test/fixtures/*.yaml
 !test/fixtures/*.json
-!.krew.yaml
 
 # OS and IDE files
 .DS_Store
