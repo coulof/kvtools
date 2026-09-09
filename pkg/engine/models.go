@@ -4,22 +4,22 @@ import "time"
 
 // InventoryReport is the top-level container holding transformed records for all 13 sheets.
 type InventoryReport struct {
-	ClusterName  string                 `json:"clusterName"`
-	GeneratedAt  time.Time              `json:"generatedAt"`
-	Summary      ReportSummary          `json:"summary"`
-	Info         []KVInfoRecord         `json:"info"`
-	CPU          []KVCPURecord          `json:"cpu"`
-	Memory       []KVMemoryRecord       `json:"memory"`
-	Disk         []KVDiskRecord         `json:"disk"`
-	Partition    []KVPartitionRecord    `json:"partition"`
-	Network      []KVNetworkRecord      `json:"network"`
-	CD           []KVCDRecord           `json:"cd"`
-	Snapshot     []KVSnapshotRecord     `json:"snapshot"`
-	GuestAgent   []KVGuestAgentRecord   `json:"guestAgent"`
-	Node         []KVNodeRecord         `json:"node"`
-	StoragePool  []KVStoragePoolRecord  `json:"storagePool"`
-	Hardware     []KVHardwareRecord     `json:"hardware"`
-	Health       []KVHealthRecord       `json:"health"`
+	ClusterName string                `json:"clusterName"`
+	GeneratedAt time.Time             `json:"generatedAt"`
+	Summary     ReportSummary         `json:"summary"`
+	Info        []KVInfoRecord        `json:"info"`
+	CPU         []KVCPURecord         `json:"cpu"`
+	Memory      []KVMemoryRecord      `json:"memory"`
+	Disk        []KVDiskRecord        `json:"disk"`
+	Partition   []KVPartitionRecord   `json:"partition"`
+	Network     []KVNetworkRecord     `json:"network"`
+	CD          []KVCDRecord          `json:"cd"`
+	Snapshot    []KVSnapshotRecord    `json:"snapshot"`
+	GuestAgent  []KVGuestAgentRecord  `json:"guestAgent"`
+	Node        []KVNodeRecord        `json:"node"`
+	StoragePool []KVStoragePoolRecord `json:"storagePool"`
+	Hardware    []KVHardwareRecord    `json:"hardware"`
+	Health      []KVHealthRecord      `json:"health"`
 }
 
 // ReportSummary contains high-level cluster virtualization metrics.
@@ -36,39 +36,47 @@ type ReportSummary struct {
 	WarningIssues     int `json:"warningIssues"`
 }
 
-// KVInfoRecord represents a row in Sheet 1 (kvInfo).
+// KVInfoRecord represents a row in Sheet 1 (kvInfo / vInfo).
 type KVInfoRecord struct {
-	VMName              string  `json:"vmName"`
+	VM                  string  `json:"vm"`
+	Powerstate          string  `json:"powerstate"`
+	Cluster             string  `json:"cluster"`
 	Namespace           string  `json:"namespace"`
-	PowerState          string  `json:"powerState"`
-	RunStrategy         string  `json:"runStrategy"`
-	Node                string  `json:"node"`
-	IPAddress           string  `json:"ipAddress"`
+	Host                string  `json:"host"`
+	PrimaryIPAddress    string  `json:"primaryIPAddress"`
+	DNSName             string  `json:"dnsName"`
 	GuestOS             string  `json:"guestOS"`
-	FirmwareBoot        string  `json:"firmwareBoot"`
+	Firmware            string  `json:"firmware"`
+	EFISecureBoot       bool    `json:"efiSecureBoot"`
 	TPMEnabled          bool    `json:"tpmEnabled"`
+	CPUs                uint32  `json:"cpus"`
 	CPUsSummary         string  `json:"cpusSummary"`
-	CPUHotplugMax       uint32  `json:"cpuHotplugMax"`
-	MemoryConfigGiB     float64 `json:"memoryConfigGiB"`
-	MemoryHotplugMaxGiB float64 `json:"memoryHotplugMaxGiB"`
-	DisksCount          int     `json:"disksCount"`
-	NICsCount           int     `json:"nicsCount"`
-	AffinityRules       string  `json:"affinityRules"`
-	CreatedTime         string  `json:"createdTime"`
+	CPUHotAddMax        uint32  `json:"cpuHotAddMax"`
+	MemoryGiB           float64 `json:"memoryGiB"`
+	MemoryHotAddMaxGiB  float64 `json:"memoryHotAddMaxGiB"`
+	Disks               int     `json:"disks"`
+	TotalDiskCapacityGB float64 `json:"totalDiskCapacityGB"`
+	NICs                int     `json:"nics"`
+	RunStrategy         string  `json:"runStrategy"`
+	ClusterRules        string  `json:"clusterRules"`
+	CreationDate        string  `json:"creationDate"`
 	Uptime              string  `json:"uptime"`
+	Annotation          string  `json:"annotation"`
 	Labels              string  `json:"labels"`
-	Annotations         string  `json:"annotations"`
-	UID                 string  `json:"uid"`
+	VMUUID              string  `json:"vmUUID"`
 }
 
-// KVCPURecord represents a row in Sheet 2 (kvCPU).
+// KVCPURecord represents a row in Sheet 2 (kvCPU / vCpu).
 type KVCPURecord struct {
-	VMName                string  `json:"vmName"`
+	VM                    string  `json:"vm"`
+	Powerstate            string  `json:"powerstate"`
+	Cluster               string  `json:"cluster"`
 	Namespace             string  `json:"namespace"`
-	Cores                 uint32  `json:"cores"`
+	Host                  string  `json:"host"`
+	CPUs                  uint32  `json:"cpus"`
 	Sockets               uint32  `json:"sockets"`
+	CoresPerSocket        uint32  `json:"coresPerSocket"`
 	Threads               uint32  `json:"threads"`
-	TotalVCPUs            uint32  `json:"totalVCPUs"`
 	CPUModel              string  `json:"cpuModel"`
 	DedicatedCPUPlacement bool    `json:"dedicatedCPUPlacement"`
 	NUMANodes             int     `json:"numaNodes"`
@@ -77,28 +85,34 @@ type KVCPURecord struct {
 	HostNodeCPUModel      string  `json:"hostNodeCPUModel"`
 }
 
-// KVMemoryRecord represents a row in Sheet 3 (kvMemory).
+// KVMemoryRecord represents a row in Sheet 3 (kvMemory / vMemory).
 type KVMemoryRecord struct {
-	VMName                string  `json:"vmName"`
-	Namespace             string  `json:"namespace"`
-	GuestRAMGiB           float64 `json:"guestRAMGiB"`
-	MemoryRequestsGiB     float64 `json:"memoryRequestsGiB"`
-	MemoryLimitsGiB       float64 `json:"memoryLimitsGiB"`
-	LauncherOverheadMiB   float64 `json:"launcherOverheadMiB"`
-	Hugepages             string  `json:"hugepages"`
-	AutoattachMemBalloon  bool    `json:"autoattachMemBalloon"`
-	MemoryDumpEnabled     bool    `json:"memoryDumpEnabled"`
+	VM                   string  `json:"vm"`
+	Powerstate           string  `json:"powerstate"`
+	Cluster              string  `json:"cluster"`
+	Namespace            string  `json:"namespace"`
+	Host                 string  `json:"host"`
+	SizeGiB              float64 `json:"sizeGiB"`
+	MemoryRequestsGiB    float64 `json:"memoryRequestsGiB"`
+	MemoryLimitsGiB      float64 `json:"memoryLimitsGiB"`
+	LauncherOverheadMiB  float64 `json:"launcherOverheadMiB"`
+	Hugepages            string  `json:"hugepages"`
+	AutoattachMemBalloon bool    `json:"autoattachMemBalloon"`
+	MemoryDumpEnabled    bool    `json:"memoryDumpEnabled"`
 }
 
-// KVDiskRecord represents a row in Sheet 4 (kvDisk).
+// KVDiskRecord represents a row in Sheet 4 (kvDisk / vDisk).
 type KVDiskRecord struct {
-	VMName            string  `json:"vmName"`
+	VM                string  `json:"vm"`
+	Powerstate        string  `json:"powerstate"`
+	Cluster           string  `json:"cluster"`
 	Namespace         string  `json:"namespace"`
-	DiskTargetName    string  `json:"diskTargetName"`
+	Host              string  `json:"host"`
+	Disk              string  `json:"disk"`
 	VolumeType        string  `json:"volumeType"`
 	ClaimName         string  `json:"claimName"`
 	StorageClass      string  `json:"storageClass"`
-	ProvisionedSizeGiB float64 `json:"provisionedSizeGiB"`
+	CapacityGiB       float64 `json:"capacityGiB"`
 	VolumeMode        string  `json:"volumeMode"`
 	AccessMode        string  `json:"accessMode"`
 	BusType           string  `json:"busType"`
@@ -108,76 +122,91 @@ type KVDiskRecord struct {
 	CSIDriver         string  `json:"csiDriver"`
 }
 
-// KVPartitionRecord represents a row in Sheet 5 (kvPartition).
+// KVPartitionRecord represents a row in Sheet 5 (kvPartition / vPartition).
 type KVPartitionRecord struct {
-	VMName          string  `json:"vmName"`
-	Namespace       string  `json:"namespace"`
-	MountPoint      string  `json:"mountPoint"`
-	FSType          string  `json:"fsType"`
-	DiskName        string  `json:"diskName"`
-	TotalCapacityGiB float64 `json:"totalCapacityGiB"`
-	UsedSpaceGiB    float64 `json:"usedSpaceGiB"`
-	FreeSpaceGiB    float64 `json:"freeSpaceGiB"`
-	FreePercent     float64 `json:"freePercent"`
+	VM          string  `json:"vm"`
+	Powerstate  string  `json:"powerstate"`
+	Cluster     string  `json:"cluster"`
+	Namespace   string  `json:"namespace"`
+	Host        string  `json:"host"`
+	MountPoint  string  `json:"mountPoint"`
+	FSType      string  `json:"fsType"`
+	Disk        string  `json:"disk"`
+	CapacityGiB float64 `json:"capacityGiB"`
+	ConsumedGiB float64 `json:"consumedGiB"`
+	FreeGiB     float64 `json:"freeGiB"`
+	FreePercent float64 `json:"freePercent"`
 }
 
-// KVNetworkRecord represents a row in Sheet 6 (kvNetwork).
+// KVNetworkRecord represents a row in Sheet 6 (kvNetwork / vNetwork).
 type KVNetworkRecord struct {
-	VMName           string `json:"vmName"`
+	VM               string `json:"vm"`
+	Powerstate       string `json:"powerstate"`
+	Cluster          string `json:"cluster"`
 	Namespace        string `json:"namespace"`
-	InterfaceName    string `json:"interfaceName"`
-	NetworkName      string `json:"networkName"`
+	Host             string `json:"host"`
+	NICLabel         string `json:"nicLabel"`
+	Network          string `json:"network"`
 	BindingType      string `json:"bindingType"`
-	MACAddress       string `json:"macAddress"`
-	PodIP            string `json:"podIP"`
+	MacAddress       string `json:"macAddress"`
+	MacType          string `json:"macType"`
+	IPv4Address      string `json:"ipv4Address"`
 	GuestReportedIPs string `json:"guestReportedIPs"`
-	InterfaceModel   string `json:"interfaceModel"`
+	AdapterModel     string `json:"adapterModel"`
 	PCIAddress       string `json:"pciAddress"`
 }
 
-// KVCDRecord represents a row in Sheet 7 (kvCD).
+// KVCDRecord represents a row in Sheet 7 (kvCD / vCD).
 type KVCDRecord struct {
-	VMName         string `json:"vmName"`
-	Namespace      string `json:"namespace"`
-	CDDeviceName   string `json:"cdDeviceName"`
-	SourceType     string `json:"sourceType"`
-	SourceImage    string `json:"sourceImage"`
-	BootOrder      string `json:"bootOrder"`
-	ConnectedState string `json:"connectedState"`
+	VM          string `json:"vm"`
+	Powerstate  string `json:"powerstate"`
+	Cluster     string `json:"cluster"`
+	Namespace   string `json:"namespace"`
+	Host        string `json:"host"`
+	DeviceNode  string `json:"deviceNode"`
+	SourceType  string `json:"sourceType"`
+	SourceImage string `json:"sourceImage"`
+	BootOrder   string `json:"bootOrder"`
+	Connected   string `json:"connected"`
 }
 
-// KVSnapshotRecord represents a row in Sheet 8 (kvSnapshot).
+// KVSnapshotRecord represents a row in Sheet 8 (kvSnapshot / vSnapshot).
 type KVSnapshotRecord struct {
-	SnapshotName          string  `json:"snapshotName"`
-	Namespace             string  `json:"namespace"`
-	SourceVM              string  `json:"sourceVM"`
-	ReadyToUse            bool    `json:"readyToUse"`
-	CreationTimestamp     string  `json:"creationTimestamp"`
-	AgeDays               int     `json:"ageDays"`
-	VolumeSnapshotCount   int     `json:"volumeSnapshotCount"`
+	SnapshotName           string  `json:"snapshotName"`
+	Cluster                string  `json:"cluster"`
+	Namespace              string  `json:"namespace"`
+	SourceVM               string  `json:"sourceVM"`
+	ReadyToUse             bool    `json:"readyToUse"`
+	CreationDate           string  `json:"creationDate"`
+	AgeDays                int     `json:"ageDays"`
+	VolumeSnapshotCount    int     `json:"volumeSnapshotCount"`
 	TotalRestorableSizeGiB float64 `json:"totalRestorableSizeGiB"`
-	ErrorReason           string  `json:"errorReason"`
+	ErrorReason            string  `json:"errorReason"`
 }
 
-// KVGuestAgentRecord represents a row in Sheet 9 (kvGuestAgent).
+// KVGuestAgentRecord represents a row in Sheet 9 (kvGuestAgent / vTools).
 type KVGuestAgentRecord struct {
-	VMName             string `json:"vmName"`
+	VM                 string `json:"vm"`
+	Powerstate         string `json:"powerstate"`
+	Cluster            string `json:"cluster"`
 	Namespace          string `json:"namespace"`
+	Host               string `json:"host"`
 	AgentConnected     bool   `json:"agentConnected"`
 	AgentVersion       string `json:"agentVersion"`
 	GuestHostname      string `json:"guestHostname"`
-	GuestOSPrettyName  string `json:"guestOSPrettyName"`
-	GuestKernelRelease string `json:"guestKernelRelease"`
+	GuestOS            string `json:"guestOS"`
+	KernelRelease      string `json:"kernelRelease"`
 	Timezone           string `json:"timezone"`
 	FSFreezeSupported  bool   `json:"fsFreezeSupported"`
 	LoggedInUsersCount int    `json:"loggedInUsersCount"`
 }
 
-// KVNodeRecord represents a row in Sheet 10 (kvNode).
+// KVNodeRecord represents a row in Sheet 10 (kvNode / vHost).
 type KVNodeRecord struct {
-	NodeName            string  `json:"nodeName"`
+	Host                string  `json:"host"`
+	Cluster             string  `json:"cluster"`
 	Status              string  `json:"status"`
-	TotalPhysicalCores  int64   `json:"totalPhysicalCores"`
+	PhysicalCores       int64   `json:"physicalCores"`
 	TotalRAMGiB         float64 `json:"totalRAMGiB"`
 	AllocatableCPU      float64 `json:"allocatableCPU"`
 	AllocatableRAMGiB   float64 `json:"allocatableRAMGiB"`
@@ -193,9 +222,10 @@ type KVNodeRecord struct {
 	NodeConditions      string  `json:"nodeConditions"`
 }
 
-// KVStoragePoolRecord represents a row in Sheet 11 (kvStoragePool).
+// KVStoragePoolRecord represents a row in Sheet 11 (kvStoragePool / vDatastore).
 type KVStoragePoolRecord struct {
 	StorageClassName      string  `json:"storageClassName"`
+	Cluster               string  `json:"cluster"`
 	ProvisionerCSIDriver  string  `json:"provisionerCSIDriver"`
 	ReclaimPolicy         string  `json:"reclaimPolicy"`
 	VolumeBindingMode     string  `json:"volumeBindingMode"`
@@ -205,24 +235,26 @@ type KVStoragePoolRecord struct {
 	TotalAllocatedSizeGiB float64 `json:"totalAllocatedSizeGiB"`
 }
 
-// KVHardwareRecord represents a row in Sheet 12 (kvHardware).
+// KVHardwareRecord represents a row in Sheet 12 (kvHardware / vUSB / vHardware).
 type KVHardwareRecord struct {
-	VMName       string `json:"vmName"`
+	VM           string `json:"vm"`
+	Cluster      string `json:"cluster"`
 	Namespace    string `json:"namespace"`
+	Host         string `json:"host"`
 	DeviceType   string `json:"deviceType"`
 	DeviceName   string `json:"deviceName"`
 	ResourceName string `json:"resourceName"`
-	AssignedNode string `json:"assignedNode"`
 }
 
-// KVHealthRecord represents a row in Sheet 13 (kvHealth).
+// KVHealthRecord represents a row in Sheet 13 (kvHealth / vHealth).
 type KVHealthRecord struct {
-	RuleID         string `json:"ruleId"`
-	Category       string `json:"category"`
-	Severity       string `json:"severity"` // "CRITICAL", "WARNING", "INFO"
-	ResourceKind   string `json:"resourceKind"`
-	ResourceName   string `json:"resourceName"`
-	Namespace      string `json:"namespace"`
-	IssueSummary   string `json:"issueSummary"`
-	Remediation    string `json:"remediation"`
+	RuleID       string `json:"ruleId"`
+	Severity     string `json:"severity"` // "CRITICAL", "WARNING", "INFO"
+	Category     string `json:"category"`
+	ResourceKind string `json:"resourceKind"`
+	ResourceName string `json:"resourceName"`
+	Cluster      string `json:"cluster"`
+	Namespace    string `json:"namespace"`
+	IssueSummary string `json:"issueSummary"`
+	Remediation  string `json:"remediation"`
 }

@@ -84,7 +84,7 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		}
 	}
 
-	// 1. Transform kvNode
+	// 1. Transform kvNode (vHost in RVTools)
 	for _, node := range raw.Nodes {
 		status := "NotReady"
 		for _, cond := range node.Status.Conditions {
@@ -133,9 +133,10 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		condsStr := strings.Join(condList, ", ")
 
 		report.Node = append(report.Node, KVNodeRecord{
-			NodeName:            node.Name,
+			Host:                node.Name,
+			Cluster:             raw.ClusterName,
 			Status:              status,
-			TotalPhysicalCores:  totalCores,
+			PhysicalCores:       totalCores,
 			TotalRAMGiB:         totalRAM,
 			AllocatableCPU:      allocCPU,
 			AllocatableRAMGiB:   allocRAM,
@@ -152,7 +153,7 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		})
 	}
 	sort.Slice(report.Node, func(i, j int) bool {
-		return report.Node[i].NodeName < report.Node[j].NodeName
+		return report.Node[i].Host < report.Node[j].Host
 	})
 
 	// 2. Transform VMs into kvInfo, kvCPU, kvMemory, kvDisk, kvNetwork, kvCD, kvHardware, kvPartition, kvGuestAgent
@@ -160,14 +161,24 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		key := fmt.Sprintf("%s/%s", vm.Namespace, vm.Name)
 		vmi, hasVMI := vmiMap[key]
 
-		// Power state resolution
-		powerState := "Stopped"
+		// Powerstate resolution (RVTools: poweredOn, poweredOff, etc.)
+		powerState := "poweredOff"
 		if hasVMI {
-			powerState = string(vmi.Status.Phase)
+			if vmi.Status.Phase == virtv1.Running {
+				powerState = "poweredOn"
+				for _, cond := range vmi.Status.Conditions {
+					if cond.Type == virtv1.VirtualMachineInstancePaused && cond.Status == corev1.ConditionTrue {
+						powerState = "suspended"
+						break
+					}
+				}
+			} else {
+				powerState = string(vmi.Status.Phase)
+			}
 		} else if vm.Spec.Running != nil && *vm.Spec.Running {
-			powerState = "Starting"
+			powerState = "starting"
 		} else if vm.Spec.RunStrategy != nil && *vm.Spec.RunStrategy != virtv1.RunStrategyHalted {
-			powerState = "Starting"
+			powerState = "starting"
 		}
 
 		runStrategy := "N/A"
@@ -181,20 +192,21 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			}
 		}
 
-		nodeName := ""
+		hostNode := ""
 		if hasVMI {
-			nodeName = vmi.Status.NodeName
+			hostNode = vmi.Status.NodeName
 		}
 
 		// Primary IP resolution
-		ipAddr := ""
+		primaryIP := ""
 		if hasVMI && len(vmi.Status.Interfaces) > 0 {
-			ipAddr = vmi.Status.Interfaces[0].IP
+			primaryIP = vmi.Status.Interfaces[0].IP
 		}
 
-		// Guest OS info
+		dnsName := ""
 		guestOS := "Unknown"
-		if osInfo, ok := raw.GuestOSInfo[key]; ok && osInfo != nil && osInfo.GAVersion != "" {
+		if osInfo, ok := raw.GuestOSInfo[key]; ok && osInfo != nil {
+			dnsName = osInfo.Hostname
 			if osInfo.OS.PrettyName != "" {
 				guestOS = osInfo.OS.PrettyName
 			} else if osInfo.OS.Name != "" {
@@ -206,13 +218,13 @@ func Transform(raw *collector.RawData) *InventoryReport {
 
 		// Firmware & Boot
 		vSpec := vm.Spec.Template.Spec
-		firmwareBoot := "BIOS"
+		firmware := "BIOS"
+		efiSecureBoot := false
 		if vSpec.Domain.Firmware != nil && vSpec.Domain.Firmware.Bootloader != nil {
 			if vSpec.Domain.Firmware.Bootloader.EFI != nil {
+				firmware = "EFI"
 				if vSpec.Domain.Firmware.Bootloader.EFI.SecureBoot != nil && *vSpec.Domain.Firmware.Bootloader.EFI.SecureBoot {
-					firmwareBoot = "UEFI (SecureBoot)"
-				} else {
-					firmwareBoot = "UEFI"
+					efiSecureBoot = true
 				}
 			}
 		}
@@ -260,8 +272,8 @@ func Transform(raw *collector.RawData) *InventoryReport {
 
 		// Host Node CPU Model
 		hostNodeCPUModel := "N/A"
-		if nodeName != "" {
-			if n, ok := nodeMap[nodeName]; ok {
+		if hostNode != "" {
+			if n, ok := nodeMap[hostNode]; ok {
 				hostNodeCPUModel = n.Status.NodeInfo.Architecture
 			}
 		}
@@ -308,7 +320,6 @@ func Transform(raw *collector.RawData) *InventoryReport {
 
 		var annotPairs []string
 		for k, v := range vm.Annotations {
-			// Skip noisy internal annotations
 			if strings.HasPrefix(k, "kubectl.kubernetes.io/") {
 				continue
 			}
@@ -323,7 +334,7 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			uptime = utils.FormatUptime(&vmi.CreationTimestamp.Time)
 		}
 
-		createdTime := utils.FormatTimestamp(&vm.CreationTimestamp.Time)
+		creationDate := utils.FormatTimestamp(&vm.CreationTimestamp.Time)
 
 		// Disks & Volume maps
 		volMap := make(map[string]virtv1.Volume)
@@ -333,8 +344,9 @@ func Transform(raw *collector.RawData) *InventoryReport {
 
 		disksCount := len(vSpec.Domain.Devices.Disks)
 		nicsCount := len(vSpec.Domain.Devices.Interfaces)
+		totalDiskCapGB := 0.0
 
-		// Affinity rules summary
+		// Affinity rules summary (RVTools: Cluster rules)
 		var affinityParts []string
 		if vSpec.Affinity != nil {
 			if vSpec.Affinity.PodAntiAffinity != nil {
@@ -350,51 +362,29 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		if len(vSpec.NodeSelector) > 0 {
 			affinityParts = append(affinityParts, "NodeSelector")
 		}
-		affinityStr := strings.Join(affinityParts, ", ")
+		clusterRules := strings.Join(affinityParts, ", ")
 
-		cpuHotplugMax := uint32(0)
+		cpuHotAddMax := uint32(0)
 		if vSpec.Domain.CPU != nil && vSpec.Domain.CPU.MaxSockets > 0 {
-			cpuHotplugMax = vSpec.Domain.CPU.MaxSockets
+			cpuHotAddMax = vSpec.Domain.CPU.MaxSockets
 		}
 
-		memHotplugMaxGiB := 0.0
+		memHotAddMaxGiB := 0.0
 		if vSpec.Domain.Memory != nil && vSpec.Domain.Memory.MaxGuest != nil {
-			memHotplugMaxGiB = utils.QuantityToGiB(vSpec.Domain.Memory.MaxGuest)
+			memHotAddMaxGiB = utils.QuantityToGiB(vSpec.Domain.Memory.MaxGuest)
 		}
-
-		// kvInfo
-		report.Info = append(report.Info, KVInfoRecord{
-			VMName:              vm.Name,
-			Namespace:           vm.Namespace,
-			PowerState:          powerState,
-			RunStrategy:         runStrategy,
-			Node:                nodeName,
-			IPAddress:           ipAddr,
-			GuestOS:             guestOS,
-			FirmwareBoot:        firmwareBoot,
-			TPMEnabled:          tpmEnabled,
-			CPUsSummary:         cpusSummary,
-			CPUHotplugMax:       cpuHotplugMax,
-			MemoryConfigGiB:     guestRAMGiB,
-			MemoryHotplugMaxGiB: memHotplugMaxGiB,
-			DisksCount:          disksCount,
-			NICsCount:           nicsCount,
-			AffinityRules:       affinityStr,
-			CreatedTime:         createdTime,
-			Uptime:              uptime,
-			Labels:              labelsStr,
-			Annotations:         annotStr,
-			UID:                 string(vm.UID),
-		})
 
 		// kvCPU
 		report.CPU = append(report.CPU, KVCPURecord{
-			VMName:                vm.Name,
+			VM:                    vm.Name,
+			Powerstate:            powerState,
+			Cluster:               raw.ClusterName,
 			Namespace:             vm.Namespace,
-			Cores:                 cores,
+			Host:                  hostNode,
+			CPUs:                  totalVCPUs,
 			Sockets:               sockets,
+			CoresPerSocket:        cores,
 			Threads:               threads,
-			TotalVCPUs:            totalVCPUs,
 			CPUModel:              cpuModel,
 			DedicatedCPUPlacement: dedicatedPlacement,
 			NUMANodes:             numaNodes,
@@ -405,9 +395,12 @@ func Transform(raw *collector.RawData) *InventoryReport {
 
 		// kvMemory
 		report.Memory = append(report.Memory, KVMemoryRecord{
-			VMName:               vm.Name,
+			VM:                   vm.Name,
+			Powerstate:           powerState,
+			Cluster:              raw.ClusterName,
 			Namespace:            vm.Namespace,
-			GuestRAMGiB:          guestRAMGiB,
+			Host:                 hostNode,
+			SizeGiB:              guestRAMGiB,
 			MemoryRequestsGiB:    memReqGiB,
 			MemoryLimitsGiB:      memLimGiB,
 			LauncherOverheadMiB:  overheadMiB,
@@ -484,6 +477,7 @@ func Transform(raw *collector.RawData) *InventoryReport {
 						}
 						if storageReq, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
 							provSizeGiB = utils.QuantityToGiB(&storageReq)
+							totalDiskCapGB += provSizeGiB
 						}
 					}
 				}
@@ -505,33 +499,69 @@ func Transform(raw *collector.RawData) *InventoryReport {
 					bootOrder = fmt.Sprintf("%d", *disk.BootOrder)
 				}
 				report.CD = append(report.CD, KVCDRecord{
-					VMName:         vm.Name,
-					Namespace:      vm.Namespace,
-					CDDeviceName:   disk.Name,
-					SourceType:     volType,
-					SourceImage:    sourceImage,
-					BootOrder:      bootOrder,
-					ConnectedState: "Connected",
+					VM:          vm.Name,
+					Powerstate:  powerState,
+					Cluster:     raw.ClusterName,
+					Namespace:   vm.Namespace,
+					Host:        hostNode,
+					DeviceNode:  disk.Name,
+					SourceType:  volType,
+					SourceImage: sourceImage,
+					BootOrder:   bootOrder,
+					Connected:   "Connected",
 				})
 			} else {
 				report.Disk = append(report.Disk, KVDiskRecord{
-					VMName:             vm.Name,
-					Namespace:          vm.Namespace,
-					DiskTargetName:     disk.Name,
-					VolumeType:         volType,
-					ClaimName:          claimName,
-					StorageClass:       storageClass,
-					ProvisionedSizeGiB: provSizeGiB,
-					VolumeMode:         volMode,
-					AccessMode:         accessMode,
-					BusType:            busType,
-					CacheMode:          cacheMode,
-					IOMode:             ioMode,
-					DedicatedIOThread:  dedicatedIO,
-					CSIDriver:          csiDriver,
+					VM:                vm.Name,
+					Powerstate:        powerState,
+					Cluster:           raw.ClusterName,
+					Namespace:         vm.Namespace,
+					Host:              hostNode,
+					Disk:              disk.Name,
+					VolumeType:        volType,
+					ClaimName:         claimName,
+					StorageClass:      storageClass,
+					CapacityGiB:       provSizeGiB,
+					VolumeMode:        volMode,
+					AccessMode:        accessMode,
+					BusType:           busType,
+					CacheMode:         cacheMode,
+					IOMode:            ioMode,
+					DedicatedIOThread: dedicatedIO,
+					CSIDriver:         csiDriver,
 				})
 			}
 		}
+
+		// kvInfo
+		report.Info = append(report.Info, KVInfoRecord{
+			VM:                  vm.Name,
+			Powerstate:          powerState,
+			Cluster:             raw.ClusterName,
+			Namespace:           vm.Namespace,
+			Host:                hostNode,
+			PrimaryIPAddress:    primaryIP,
+			DNSName:             dnsName,
+			GuestOS:             guestOS,
+			Firmware:            firmware,
+			EFISecureBoot:       efiSecureBoot,
+			TPMEnabled:          tpmEnabled,
+			CPUs:                totalVCPUs,
+			CPUsSummary:         cpusSummary,
+			CPUHotAddMax:        cpuHotAddMax,
+			MemoryGiB:           guestRAMGiB,
+			MemoryHotAddMaxGiB:  memHotAddMaxGiB,
+			Disks:               disksCount,
+			TotalDiskCapacityGB: totalDiskCapGB,
+			NICs:                nicsCount,
+			RunStrategy:         runStrategy,
+			ClusterRules:        clusterRules,
+			CreationDate:        creationDate,
+			Uptime:              uptime,
+			Annotation:          annotStr,
+			Labels:              labelsStr,
+			VMUUID:              string(vm.UID),
+		})
 
 		// kvNetwork
 		netMap := make(map[string]virtv1.Network)
@@ -561,6 +591,10 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			}
 
 			mac := iface.MacAddress
+			macType := "Manual"
+			if mac == "" {
+				macType = "Generated"
+			}
 			podIP := ""
 			var guestIPs []string
 
@@ -577,38 +611,44 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			}
 
 			report.Network = append(report.Network, KVNetworkRecord{
-				VMName:           vm.Name,
+				VM:               vm.Name,
+				Powerstate:       powerState,
+				Cluster:          raw.ClusterName,
 				Namespace:        vm.Namespace,
-				InterfaceName:    iface.Name,
-				NetworkName:      networkName,
+				Host:             hostNode,
+				NICLabel:         iface.Name,
+				Network:          networkName,
 				BindingType:      bindingType,
-				MACAddress:       mac,
-				PodIP:            podIP,
+				MacAddress:       mac,
+				MacType:          macType,
+				IPv4Address:      podIP,
 				GuestReportedIPs: strings.Join(guestIPs, ", "),
-				InterfaceModel:   iface.Model,
+				AdapterModel:     iface.Model,
 				PCIAddress:       iface.PciAddress,
 			})
 		}
 
-		// kvHardware (GPUs, HostDevices)
+		// kvHardware (vUSB / vHardware)
 		for _, gpu := range vSpec.Domain.Devices.GPUs {
 			report.Hardware = append(report.Hardware, KVHardwareRecord{
-				VMName:       vm.Name,
+				VM:           vm.Name,
+				Cluster:      raw.ClusterName,
 				Namespace:    vm.Namespace,
+				Host:         hostNode,
 				DeviceType:   "GPU",
 				DeviceName:   gpu.Name,
 				ResourceName: gpu.DeviceName,
-				AssignedNode: nodeName,
 			})
 		}
 		for _, hostDev := range vSpec.Domain.Devices.HostDevices {
 			report.Hardware = append(report.Hardware, KVHardwareRecord{
-				VMName:       vm.Name,
+				VM:           vm.Name,
+				Cluster:      raw.ClusterName,
 				Namespace:    vm.Namespace,
+				Host:         hostNode,
 				DeviceType:   "HostDevice",
 				DeviceName:   hostDev.Name,
 				ResourceName: hostDev.DeviceName,
-				AssignedNode: nodeName,
 			})
 		}
 
@@ -628,20 +668,23 @@ func Transform(raw *collector.RawData) *InventoryReport {
 					freePct = float64(freeBytes) / float64(fs.TotalBytes) * 100.0
 				}
 				report.Partition = append(report.Partition, KVPartitionRecord{
-					VMName:           vm.Name,
-					Namespace:        vm.Namespace,
-					MountPoint:       fs.MountPoint,
-					FSType:           fs.FileSystemType,
-					DiskName:         fs.DiskName,
-					TotalCapacityGiB: totalGiB,
-					UsedSpaceGiB:     usedGiB,
-					FreeSpaceGiB:     freeGiB,
-					FreePercent:      utils.BytesToGiB(int64(freePct * float64(utils.GiB))), // round to 2 dec
+					VM:          vm.Name,
+					Powerstate:  powerState,
+					Cluster:     raw.ClusterName,
+					Namespace:   vm.Namespace,
+					Host:        hostNode,
+					MountPoint:  fs.MountPoint,
+					FSType:      fs.FileSystemType,
+					Disk:        fs.DiskName,
+					CapacityGiB: totalGiB,
+					ConsumedGiB: usedGiB,
+					FreeGiB:     freeGiB,
+					FreePercent: utils.BytesToGiB(int64(freePct * float64(utils.GiB))),
 				})
 			}
 		}
 
-		// kvGuestAgent
+		// kvGuestAgent (vTools in RVTools)
 		if hasVMI && vmi.Status.Phase == virtv1.Running {
 			agentConnected := false
 			for _, cond := range vmi.Status.Conditions {
@@ -670,13 +713,16 @@ func Transform(raw *collector.RawData) *InventoryReport {
 			}
 
 			report.GuestAgent = append(report.GuestAgent, KVGuestAgentRecord{
-				VMName:             vm.Name,
+				VM:                 vm.Name,
+				Powerstate:         powerState,
+				Cluster:            raw.ClusterName,
 				Namespace:          vm.Namespace,
+				Host:               hostNode,
 				AgentConnected:     agentConnected,
 				AgentVersion:       agentVer,
 				GuestHostname:      guestHost,
-				GuestOSPrettyName:  prettyName,
-				GuestKernelRelease: kernelRel,
+				GuestOS:            prettyName,
+				KernelRelease:      kernelRel,
 				Timezone:           tz,
 				FSFreezeSupported:  fsFreeze,
 				LoggedInUsersCount: userCount,
@@ -701,19 +747,20 @@ func Transform(raw *collector.RawData) *InventoryReport {
 		}
 
 		report.Snapshot = append(report.Snapshot, KVSnapshotRecord{
-			SnapshotName:          snapName,
-			Namespace:             snapNS,
-			SourceVM:              sourceVM,
-			ReadyToUse:            readyToUse,
-			CreationTimestamp:     utils.FormatTimestamp(&creationTime),
-			AgeDays:               ageDays,
-			VolumeSnapshotCount:   1,
+			SnapshotName:           snapName,
+			Cluster:                raw.ClusterName,
+			Namespace:              snapNS,
+			SourceVM:               sourceVM,
+			ReadyToUse:             readyToUse,
+			CreationDate:           utils.FormatTimestamp(&creationTime),
+			AgeDays:                ageDays,
+			VolumeSnapshotCount:    1,
 			TotalRestorableSizeGiB: 0,
-			ErrorReason:           errorReason,
+			ErrorReason:            errorReason,
 		})
 	}
 
-	// 4. Transform kvStoragePool
+	// 4. Transform kvStoragePool (vDatastore in RVTools)
 	scPVCCount := make(map[string]int)
 	scAllocSize := make(map[string]float64)
 	for _, pvc := range raw.PVCs {
@@ -743,6 +790,7 @@ func Transform(raw *collector.RawData) *InventoryReport {
 
 		report.StoragePool = append(report.StoragePool, KVStoragePoolRecord{
 			StorageClassName:      sc.Name,
+			Cluster:               raw.ClusterName,
 			ProvisionerCSIDriver:  sc.Provisioner,
 			ReclaimPolicy:         reclaimPolicy,
 			VolumeBindingMode:     bindingMode,
@@ -760,7 +808,7 @@ func Transform(raw *collector.RawData) *InventoryReport {
 	runningVMs := 0
 	stoppedVMs := 0
 	for _, info := range report.Info {
-		if info.PowerState == "Running" {
+		if info.Powerstate == "poweredOn" || info.Powerstate == "Running" {
 			runningVMs++
 		} else {
 			stoppedVMs++

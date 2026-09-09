@@ -15,14 +15,15 @@ func TestExportCSV(t *testing.T) {
 		GeneratedAt: time.Now().UTC(),
 		Info: []engine.KVInfoRecord{
 			{
-				VMName:          "vm-alpha",
-				Namespace:       "prod",
-				PowerState:      "Running",
-				RunStrategy:     "Always",
-				Node:            "node-1",
-				IPAddress:       "10.0.0.1",
-				GuestOS:         "Linux",
-				MemoryConfigGiB: 4.0,
+				VM:          "vm-alpha",
+				Cluster:     "test-cluster",
+				Namespace:   "prod",
+				Powerstate:  "poweredOn",
+				RunStrategy: "Always",
+				Host:        "node-1",
+				PrimaryIPAddress: "10.0.0.1",
+				GuestOS:     "Linux",
+				MemoryGiB:   4.0,
 			},
 		},
 		Health: []engine.KVHealthRecord{
@@ -32,6 +33,7 @@ func TestExportCSV(t *testing.T) {
 				Severity:     "CRITICAL",
 				ResourceKind: "VirtualMachine",
 				ResourceName: "vm-alpha",
+				Cluster:      "test-cluster",
 				Namespace:    "prod",
 				IssueSummary: "RWO PVC",
 				Remediation:  "Fix storage",
@@ -45,7 +47,7 @@ func TestExportCSV(t *testing.T) {
 	}
 
 	content := buf.String()
-	if !strings.Contains(content, "VM Name,Namespace,Power State") || !strings.Contains(content, "vm-alpha,prod,Running") {
+	if !strings.Contains(content, "VM,Powerstate,Cluster,Namespace") || !strings.Contains(content, "vm-alpha,poweredOn,test-cluster,prod") {
 		t.Errorf("unexpected CSV content:\n%s", content)
 	}
 
@@ -55,7 +57,7 @@ func TestExportCSV(t *testing.T) {
 	}
 
 	healthContent := healthBuf.String()
-	if !strings.Contains(healthContent, "HLTH-001,Migration Blocker,CRITICAL,VirtualMachine,vm-alpha,prod,RWO PVC,Fix storage") {
+	if !strings.Contains(healthContent, "HLTH-001,CRITICAL,Migration Blocker,VirtualMachine,vm-alpha,test-cluster,prod,RWO PVC,Fix storage") {
 		t.Errorf("unexpected health CSV content:\n%s", healthContent)
 	}
 }

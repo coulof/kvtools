@@ -39,7 +39,7 @@ func RenderHealthTable(records []engine.KVHealthRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Rule ID", "Severity", "Category", "Resource", "Namespace", "Issue Summary", "Remediation"})
+	table.SetHeader([]string{"Rule ID", "Severity", "Category", "Resource", "Cluster", "Namespace", "Issue Summary", "Remediation"})
 	table.SetBorder(true)
 	table.SetRowLine(true)
 	table.SetAutoWrapText(true)
@@ -58,6 +58,7 @@ func RenderHealthTable(records []engine.KVHealthRecord, w io.Writer) {
 			sevFormatted,
 			r.Category,
 			fmt.Sprintf("%s/%s", r.ResourceKind, r.ResourceName),
+			r.Cluster,
 			r.Namespace,
 			r.IssueSummary,
 			r.Remediation,
@@ -75,29 +76,30 @@ func RenderInfoTable(records []engine.KVInfoRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Power State", "Node", "IP Address", "Guest OS", "vCPUs", "RAM (GiB)", "Disks", "NICs", "Uptime"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "IP Address", "Guest OS", "vCPUs", "RAM (GiB)", "Disks", "NICs", "Uptime"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
-		state := r.PowerState
-		if r.PowerState == "Running" {
-			state = fmt.Sprintf("\033[32m%s\033[0m", r.PowerState)
-		} else if r.PowerState == "Stopped" {
-			state = fmt.Sprintf("\033[90m%s\033[0m", r.PowerState)
+		state := r.Powerstate
+		if r.Powerstate == "poweredOn" || r.Powerstate == "Running" {
+			state = fmt.Sprintf("\033[32m%s\033[0m", r.Powerstate)
+		} else if r.Powerstate == "poweredOff" || r.Powerstate == "Stopped" {
+			state = fmt.Sprintf("\033[90m%s\033[0m", r.Powerstate)
 		}
 
 		table.Append([]string{
-			r.VMName,
-			r.Namespace,
+			r.VM,
 			state,
-			r.Node,
-			r.IPAddress,
+			r.Cluster,
+			r.Namespace,
+			r.Host,
+			r.PrimaryIPAddress,
 			r.GuestOS,
 			r.CPUsSummary,
-			fmt.Sprintf("%.1f", r.MemoryConfigGiB),
-			fmt.Sprintf("%d", r.DisksCount),
-			fmt.Sprintf("%d", r.NICsCount),
+			fmt.Sprintf("%.1f", r.MemoryGiB),
+			fmt.Sprintf("%d", r.Disks),
+			fmt.Sprintf("%d", r.NICs),
 			r.Uptime,
 		})
 	}
@@ -113,18 +115,21 @@ func RenderCPUTable(records []engine.KVCPURecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Cores", "Sockets", "Threads", "Total vCPUs", "CPU Model", "Dedicated", "Req Cores", "Lim Cores", "Host Arch"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "CPUs", "Sockets", "Cores p/s", "Threads", "CPU Model", "Dedicated", "Req Cores", "Lim Cores", "Host Arch"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
-			fmt.Sprintf("%d", r.Cores),
+			r.Host,
+			fmt.Sprintf("%d", r.CPUs),
 			fmt.Sprintf("%d", r.Sockets),
+			fmt.Sprintf("%d", r.CoresPerSocket),
 			fmt.Sprintf("%d", r.Threads),
-			fmt.Sprintf("%d", r.TotalVCPUs),
 			r.CPUModel,
 			fmt.Sprintf("%t", r.DedicatedCPUPlacement),
 			fmt.Sprintf("%.2f", r.CPURequests),
@@ -144,15 +149,18 @@ func RenderMemoryTable(records []engine.KVMemoryRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Guest RAM (GiB)", "Req (GiB)", "Lim (GiB)", "Overhead (MiB)", "Hugepages", "Balloon"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "Size (GiB)", "Req (GiB)", "Lim (GiB)", "Overhead (MiB)", "Hugepages", "Balloon"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
-			fmt.Sprintf("%.2f", r.GuestRAMGiB),
+			r.Host,
+			fmt.Sprintf("%.2f", r.SizeGiB),
 			fmt.Sprintf("%.2f", r.MemoryRequestsGiB),
 			fmt.Sprintf("%.2f", r.MemoryLimitsGiB),
 			fmt.Sprintf("%.1f", r.LauncherOverheadMiB),
@@ -172,19 +180,22 @@ func RenderDiskTable(records []engine.KVDiskRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Disk Target", "Type", "Claim Name", "StorageClass", "Size (GiB)", "Access Mode", "Bus", "CSI Driver"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "Disk", "Type", "Claim Name", "StorageClass", "Size (GiB)", "Access Mode", "Bus", "CSI Driver"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
-			r.DiskTargetName,
+			r.Host,
+			r.Disk,
 			r.VolumeType,
 			r.ClaimName,
 			r.StorageClass,
-			fmt.Sprintf("%.1f", r.ProvisionedSizeGiB),
+			fmt.Sprintf("%.1f", r.CapacityGiB),
 			r.AccessMode,
 			r.BusType,
 			r.CSIDriver,
@@ -202,20 +213,23 @@ func RenderPartitionTable(records []engine.KVPartitionRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Mount Point", "FS Type", "Disk Device", "Total (GiB)", "Used (GiB)", "Free (GiB)", "Free %"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "Mount Point", "FS Type", "Disk Device", "Total (GiB)", "Consumed (GiB)", "Free (GiB)", "Free %"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
+			r.Host,
 			r.MountPoint,
 			r.FSType,
-			r.DiskName,
-			fmt.Sprintf("%.2f", r.TotalCapacityGiB),
-			fmt.Sprintf("%.2f", r.UsedSpaceGiB),
-			fmt.Sprintf("%.2f", r.FreeSpaceGiB),
+			r.Disk,
+			fmt.Sprintf("%.2f", r.CapacityGiB),
+			fmt.Sprintf("%.2f", r.ConsumedGiB),
+			fmt.Sprintf("%.2f", r.FreeGiB),
 			fmt.Sprintf("%.1f%%", r.FreePercent),
 		})
 	}
@@ -231,19 +245,22 @@ func RenderNetworkTable(records []engine.KVNetworkRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Interface", "Network", "Binding", "MAC Address", "Pod IP", "Guest IPs"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "NIC Label", "Network", "Binding", "MAC Address", "IPv4 Address", "Guest IPs"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
-			r.InterfaceName,
-			r.NetworkName,
+			r.Host,
+			r.NICLabel,
+			r.Network,
 			r.BindingType,
-			r.MACAddress,
-			r.PodIP,
+			r.MacAddress,
+			r.IPv4Address,
 			r.GuestReportedIPs,
 		})
 	}
@@ -259,19 +276,22 @@ func RenderCDTable(records []engine.KVCDRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Device", "Type", "Source Image", "Boot Order", "State"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "Device", "Type", "Source Image", "Boot Order", "State"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
-			r.CDDeviceName,
+			r.Host,
+			r.DeviceNode,
 			r.SourceType,
 			r.SourceImage,
 			r.BootOrder,
-			r.ConnectedState,
+			r.Connected,
 		})
 	}
 
@@ -286,7 +306,7 @@ func RenderSnapshotTable(records []engine.KVSnapshotRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Snapshot Name", "Namespace", "Source VM", "Ready", "Age (Days)", "Created", "Error"})
+	table.SetHeader([]string{"Snapshot Name", "Cluster", "Namespace", "Source VM", "Ready", "Age (Days)", "Date / time", "Error"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
@@ -297,11 +317,12 @@ func RenderSnapshotTable(records []engine.KVSnapshotRecord, w io.Writer) {
 		}
 		table.Append([]string{
 			r.SnapshotName,
+			r.Cluster,
 			r.Namespace,
 			r.SourceVM,
 			readyStr,
 			fmt.Sprintf("%d", r.AgeDays),
-			r.CreationTimestamp,
+			r.CreationDate,
 			r.ErrorReason,
 		})
 	}
@@ -317,7 +338,7 @@ func RenderGuestAgentTable(records []engine.KVGuestAgentRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Agent Connected", "Agent Ver", "Guest Hostname", "Guest OS", "Kernel Release", "Timezone"})
+	table.SetHeader([]string{"VM", "Powerstate", "Cluster", "Namespace", "Host", "Agent Connected", "Agent Ver", "Guest Hostname", "Guest OS", "Kernel Release", "Timezone"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
@@ -327,13 +348,16 @@ func RenderGuestAgentTable(records []engine.KVGuestAgentRecord, w io.Writer) {
 			connStr = "\033[32mYes\033[0m"
 		}
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Powerstate,
+			r.Cluster,
 			r.Namespace,
+			r.Host,
 			connStr,
 			r.AgentVersion,
 			r.GuestHostname,
-			r.GuestOSPrettyName,
-			r.GuestKernelRelease,
+			r.GuestOS,
+			r.KernelRelease,
 			r.Timezone,
 		})
 	}
@@ -349,7 +373,7 @@ func RenderStoragePoolTable(records []engine.KVStoragePoolRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"StorageClass Name", "Provisioner / CSI Driver", "Reclaim Policy", "Binding Mode", "Expansion", "Default", "Bound PVCs", "Allocated (GiB)"})
+	table.SetHeader([]string{"StorageClass Name", "Cluster", "Provisioner / CSI Driver", "Reclaim Policy", "Binding Mode", "Expansion", "Default", "Bound PVCs", "Allocated (GiB)"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
@@ -360,6 +384,7 @@ func RenderStoragePoolTable(records []engine.KVStoragePoolRecord, w io.Writer) {
 		}
 		table.Append([]string{
 			r.StorageClassName,
+			r.Cluster,
 			r.ProvisionerCSIDriver,
 			r.ReclaimPolicy,
 			r.VolumeBindingMode,
@@ -381,18 +406,19 @@ func RenderHardwareTable(records []engine.KVHardwareRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"VM Name", "Namespace", "Device Type", "Device Name", "Resource Name", "Assigned Node"})
+	table.SetHeader([]string{"VM", "Cluster", "Namespace", "Host", "Device Type", "Device Name", "Resource Name"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
 	for _, r := range records {
 		table.Append([]string{
-			r.VMName,
+			r.VM,
+			r.Cluster,
 			r.Namespace,
+			r.Host,
 			r.DeviceType,
 			r.DeviceName,
 			r.ResourceName,
-			r.AssignedNode,
 		})
 	}
 
@@ -407,7 +433,7 @@ func RenderNodeTable(records []engine.KVNodeRecord, w io.Writer) {
 	}
 
 	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Node Name", "Status", "Phys Cores", "RAM (GiB)", "Alloc CPU", "Alloc RAM", "VM vCPUs", "VM RAM", "Overcommit", "VMs", "KVM Accel"})
+	table.SetHeader([]string{"Host", "Cluster", "Status", "# Cores", "RAM (GiB)", "Alloc CPU", "Alloc RAM", "VM vCPUs", "VM RAM", "Overcommit", "# VMs", "KVM Accel"})
 	table.SetBorder(true)
 	table.SetAutoWrapText(false)
 
@@ -425,9 +451,10 @@ func RenderNodeTable(records []engine.KVNodeRecord, w io.Writer) {
 		}
 
 		table.Append([]string{
-			r.NodeName,
+			r.Host,
+			r.Cluster,
 			status,
-			fmt.Sprintf("%d", r.TotalPhysicalCores),
+			fmt.Sprintf("%d", r.PhysicalCores),
 			fmt.Sprintf("%.1f", r.TotalRAMGiB),
 			fmt.Sprintf("%.1f", r.AllocatableCPU),
 			fmt.Sprintf("%.1f", r.AllocatableRAMGiB),

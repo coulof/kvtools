@@ -21,7 +21,7 @@ func TestMergeCommand(t *testing.T) {
 		ClusterName: "cluster-1",
 		GeneratedAt: time.Now(),
 		Info: []engine.KVInfoRecord{
-			{VMName: "vm-c1-01", Namespace: "default", PowerState: "Running"},
+			{VM: "vm-c1-01", Cluster: "cluster-1", Namespace: "default", Powerstate: "poweredOn"},
 		},
 	}
 
@@ -29,7 +29,7 @@ func TestMergeCommand(t *testing.T) {
 		ClusterName: "cluster-2",
 		GeneratedAt: time.Now(),
 		Info: []engine.KVInfoRecord{
-			{VMName: "vm-c2-01", Namespace: "default", PowerState: "Stopped"},
+			{VM: "vm-c2-01", Cluster: "cluster-2", Namespace: "default", Powerstate: "poweredOff"},
 		},
 	}
 

@@ -259,7 +259,7 @@ func TestTransformerFullReport(t *testing.T) {
 		t.Fatalf("expected 1 Info record, got %d", len(report.Info))
 	}
 	info := report.Info[0]
-	if info.VMName != "win-server-2022" || info.PowerState != "Running" || info.GuestOS != "Windows Server 2022 Datacenter" {
+	if info.VM != "win-server-2022" || info.Powerstate != "poweredOn" || info.GuestOS != "Windows Server 2022 Datacenter" {
 		t.Errorf("unexpected Info values: %+v", info)
 	}
 
@@ -268,20 +268,20 @@ func TestTransformerFullReport(t *testing.T) {
 		t.Fatalf("expected 1 CPU record, got %d", len(report.CPU))
 	}
 	cpu := report.CPU[0]
-	if cpu.TotalVCPUs != 8 || cpu.Cores != 4 || cpu.Sockets != 2 {
-		t.Errorf("expected 8 vCPUs (4 cores * 2 sockets), got %d", cpu.TotalVCPUs)
+	if cpu.CPUs != 8 || cpu.CoresPerSocket != 4 || cpu.Sockets != 2 {
+		t.Errorf("expected 8 vCPUs (4 cores * 2 sockets), got %d", cpu.CPUs)
 	}
 
 	// Verify kvMemory
-	if len(report.Memory) != 1 || report.Memory[0].GuestRAMGiB != 16.0 {
+	if len(report.Memory) != 1 || report.Memory[0].SizeGiB != 16.0 {
 		t.Errorf("expected 16 GiB RAM, got %+v", report.Memory)
 	}
 
 	// Verify kvDisk & kvCD
-	if len(report.Disk) != 1 || report.Disk[0].DiskTargetName != "disk0" {
+	if len(report.Disk) != 1 || report.Disk[0].Disk != "disk0" {
 		t.Errorf("expected 1 Disk record (disk0), got %+v", report.Disk)
 	}
-	if len(report.CD) != 1 || report.CD[0].CDDeviceName != "cdrom0" {
+	if len(report.CD) != 1 || report.CD[0].DeviceNode != "cdrom0" {
 		t.Errorf("expected 1 CD record (cdrom0), got %+v", report.CD)
 	}
 

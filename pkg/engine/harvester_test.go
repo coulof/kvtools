@@ -32,7 +32,7 @@ func TestHarvesterFixtureReport(t *testing.T) {
 		t.Fatalf("expected 1 VM Info record, got %d", len(report.Info))
 	}
 	vm := report.Info[0]
-	if vm.VMName != "test" || vm.GuestOS != "SUSE Linux Enterprise Server 16.0" || vm.Node != "hv-01" {
+	if vm.VM != "test" || vm.GuestOS != "SUSE Linux Enterprise Server 16.0" || vm.Host != "hv-01" {
 		t.Errorf("unexpected VM values: %+v", vm)
 	}
 

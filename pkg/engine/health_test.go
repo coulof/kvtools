@@ -303,7 +303,7 @@ func TestHealthAuditRules(t *testing.T) {
 
 	// Node overcommit > 8:1 (HLTH-011)
 	nodeOvercommit := KVNodeRecord{
-		NodeName:            "node-1",
+		Host:                "node-1",
 		VCPUOvercommitRatio: 9.5,
 	}
 

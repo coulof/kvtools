@@ -37,10 +37,11 @@ func writeKVInfoSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Power State", "Run Strategy", "Node",
-		"IP Address", "Guest OS", "Firmware / Boot", "TPM Enabled",
-		"CPUs (C/S/T)", "CPU Hotplug Max", "Memory Configured (GiB)", "Memory Hotplug Max (GiB)",
-		"Disks Count", "NICs Count", "Affinity Rules", "Created Time", "Uptime", "Labels", "Annotations", "UID",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"Primary IP Address", "DNS Name", "Guest OS", "Firmware", "EFI Secure boot", "TPM Enabled",
+		"CPUs", "CPUs Summary", "CPU Hot Add Max", "Memory (GiB)", "Memory Hot Add Max (GiB)",
+		"Disks", "Total Disk capacity (GiB)", "NICs", "Run Strategy", "Cluster rules",
+		"Creation date", "Uptime", "Annotation", "Labels", "VM UUID",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -53,10 +54,11 @@ func writeKVInfoSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.PowerState, r.RunStrategy, r.Node,
-			r.IPAddress, r.GuestOS, r.FirmwareBoot, r.TPMEnabled,
-			r.CPUsSummary, r.CPUHotplugMax, r.MemoryConfigGiB, r.MemoryHotplugMaxGiB,
-			r.DisksCount, r.NICsCount, r.AffinityRules, r.CreatedTime, r.Uptime, r.Labels, r.Annotations, r.UID,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.PrimaryIPAddress, r.DNSName, r.GuestOS, r.Firmware, r.EFISecureBoot, r.TPMEnabled,
+			r.CPUs, r.CPUsSummary, r.CPUHotAddMax, r.MemoryGiB, r.MemoryHotAddMaxGiB,
+			r.Disks, r.TotalDiskCapacityGB, r.NICs, r.RunStrategy, r.ClusterRules,
+			r.CreationDate, r.Uptime, r.Annotation, r.Labels, r.VMUUID,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -76,8 +78,9 @@ func writeKVCPUSheet(f *excelize.File, report *engine.InventoryReport, headerSty
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Cores", "Sockets", "Threads",
-		"Total vCPUs", "CPU Model", "Dedicated CPU Placement", "NUMA Nodes",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"CPUs", "Sockets", "Cores p/s", "Threads",
+		"CPU Model", "Dedicated CPU Placement", "NUMA Nodes",
 		"CPU Requests", "CPU Limits", "Host Node CPU Model",
 	}
 
@@ -91,8 +94,9 @@ func writeKVCPUSheet(f *excelize.File, report *engine.InventoryReport, headerSty
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.Cores, r.Sockets, r.Threads,
-			r.TotalVCPUs, r.CPUModel, r.DedicatedCPUPlacement, r.NUMANodes,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.CPUs, r.Sockets, r.CoresPerSocket, r.Threads,
+			r.CPUModel, r.DedicatedCPUPlacement, r.NUMANodes,
 			r.CPURequests, r.CPULimits, r.HostNodeCPUModel,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
@@ -113,9 +117,9 @@ func writeKVMemorySheet(f *excelize.File, report *engine.InventoryReport, header
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Guest RAM (GiB)", "Memory Requests (GiB)",
-		"Memory Limits (GiB)", "Launcher Overhead (MiB)", "Hugepages",
-		"Autoattach Memory Balloon", "Memory Dump Enabled",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"Size (GiB)", "Memory Requests (GiB)", "Memory Limits (GiB)",
+		"Launcher Overhead (MiB)", "Hugepages", "Ballooned", "Memory Dump Enabled",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -128,9 +132,9 @@ func writeKVMemorySheet(f *excelize.File, report *engine.InventoryReport, header
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.GuestRAMGiB, r.MemoryRequestsGiB,
-			r.MemoryLimitsGiB, r.LauncherOverheadMiB, r.Hugepages,
-			r.AutoattachMemBalloon, r.MemoryDumpEnabled,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.SizeGiB, r.MemoryRequestsGiB, r.MemoryLimitsGiB,
+			r.LauncherOverheadMiB, r.Hugepages, r.AutoattachMemBalloon, r.MemoryDumpEnabled,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -150,10 +154,10 @@ func writeKVDiskSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Disk Target Name", "Volume Type",
-		"Claim Name", "StorageClass", "Provisioned Size (GiB)", "Volume Mode",
-		"Access Mode", "Bus Type", "Cache Mode", "IO Mode",
-		"Dedicated IO Thread", "CSI Driver",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"Disk", "Volume Type", "Claim Name", "StorageClass",
+		"Capacity (GiB)", "Volume Mode", "Access Mode", "Bus Type",
+		"Cache Mode", "IO Mode", "Dedicated IO Thread", "CSI Driver",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -166,10 +170,10 @@ func writeKVDiskSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.DiskTargetName, r.VolumeType,
-			r.ClaimName, r.StorageClass, r.ProvisionedSizeGiB, r.VolumeMode,
-			r.AccessMode, r.BusType, r.CacheMode, r.IOMode,
-			r.DedicatedIOThread, r.CSIDriver,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.Disk, r.VolumeType, r.ClaimName, r.StorageClass,
+			r.CapacityGiB, r.VolumeMode, r.AccessMode, r.BusType,
+			r.CacheMode, r.IOMode, r.DedicatedIOThread, r.CSIDriver,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -189,9 +193,9 @@ func writeKVPartitionSheet(f *excelize.File, report *engine.InventoryReport, hea
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Mount Point", "FS Type",
-		"Disk Name", "Total Capacity (GiB)", "Used Space (GiB)", "Free Space (GiB)",
-		"Free %",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"Mount Point", "FS Type", "Disk", "Capacity (GiB)",
+		"Consumed (GiB)", "Free (GiB)", "Free %",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -204,9 +208,9 @@ func writeKVPartitionSheet(f *excelize.File, report *engine.InventoryReport, hea
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.MountPoint, r.FSType,
-			r.DiskName, r.TotalCapacityGiB, r.UsedSpaceGiB, r.FreeSpaceGiB,
-			r.FreePercent,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.MountPoint, r.FSType, r.Disk, r.CapacityGiB,
+			r.ConsumedGiB, r.FreeGiB, r.FreePercent,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -226,9 +230,9 @@ func writeKVNetworkSheet(f *excelize.File, report *engine.InventoryReport, heade
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Interface Name", "Network Name",
-		"Binding Type", "MAC Address", "Pod IP", "Guest Reported IPs",
-		"Interface Model", "PCI Address",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"NIC label", "Network", "Binding Type", "Mac Address", "Mac Type",
+		"IPv4 Address", "Guest Reported IPs", "Adapter Model", "PCI Address",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -241,9 +245,9 @@ func writeKVNetworkSheet(f *excelize.File, report *engine.InventoryReport, heade
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.InterfaceName, r.NetworkName,
-			r.BindingType, r.MACAddress, r.PodIP, r.GuestReportedIPs,
-			r.InterfaceModel, r.PCIAddress,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.NICLabel, r.Network, r.BindingType, r.MacAddress, r.MacType,
+			r.IPv4Address, r.GuestReportedIPs, r.AdapterModel, r.PCIAddress,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -263,8 +267,8 @@ func writeKVCDSheet(f *excelize.File, report *engine.InventoryReport, headerStyl
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "CD Device Name", "Source Type",
-		"Source Image / Reference", "Boot Order", "Connected / Mounted State",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"Device Node", "Source Type", "Source Image", "Boot Order", "Connected",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -277,8 +281,8 @@ func writeKVCDSheet(f *excelize.File, report *engine.InventoryReport, headerStyl
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.CDDeviceName, r.SourceType,
-			r.SourceImage, r.BootOrder, r.ConnectedState,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.DeviceNode, r.SourceType, r.SourceImage, r.BootOrder, r.Connected,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -298,9 +302,9 @@ func writeKVSnapshotSheet(f *excelize.File, report *engine.InventoryReport, head
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"Snapshot Name", "Namespace", "Source VM", "Ready to Use",
-		"Creation Timestamp", "Age (Days)", "Volume Snapshot Count",
-		"Total Restorable Size (GiB)", "Error / Failure Reason",
+		"Snapshot Name", "Cluster", "Namespace", "Source VM", "Ready to Use",
+		"Date / time", "Age (Days)", "Volume Snapshot Count",
+		"Total Restorable Size (GiB)", "Error Reason",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -313,8 +317,8 @@ func writeKVSnapshotSheet(f *excelize.File, report *engine.InventoryReport, head
 		}
 
 		vals := []interface{}{
-			r.SnapshotName, r.Namespace, r.SourceVM, r.ReadyToUse,
-			r.CreationTimestamp, r.AgeDays, r.VolumeSnapshotCount,
+			r.SnapshotName, r.Cluster, r.Namespace, r.SourceVM, r.ReadyToUse,
+			r.CreationDate, r.AgeDays, r.VolumeSnapshotCount,
 			r.TotalRestorableSizeGiB, r.ErrorReason,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
@@ -335,9 +339,9 @@ func writeKVGuestAgentSheet(f *excelize.File, report *engine.InventoryReport, he
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Agent Connected", "Agent Version",
-		"Guest Hostname", "Guest OS Pretty Name", "Guest Kernel Release",
-		"Timezone", "FS Freeze Supported", "Logged-in Users Count",
+		"VM", "Powerstate", "Cluster", "Namespace", "Host",
+		"Agent Connected", "Agent Version", "Guest Hostname", "Guest OS",
+		"Kernel Release", "Timezone", "FS Freeze Supported", "Logged-in Users Count",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -350,9 +354,9 @@ func writeKVGuestAgentSheet(f *excelize.File, report *engine.InventoryReport, he
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.AgentConnected, r.AgentVersion,
-			r.GuestHostname, r.GuestOSPrettyName, r.GuestKernelRelease,
-			r.Timezone, r.FSFreezeSupported, r.LoggedInUsersCount,
+			r.VM, r.Powerstate, r.Cluster, r.Namespace, r.Host,
+			r.AgentConnected, r.AgentVersion, r.GuestHostname, r.GuestOS,
+			r.KernelRelease, r.Timezone, r.FSFreezeSupported, r.LoggedInUsersCount,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -372,10 +376,10 @@ func writeKVNodeSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"Node Name", "Status", "Total Physical Cores / Sockets", "Total RAM (GiB)",
-		"Allocatable CPU", "Allocatable RAM (GiB)", "Allocated VM vCPUs",
-		"Allocated VM RAM (GiB)", "vCPU Overcommit Ratio", "Active VM Count",
-		"KVM Hardware Acceleration Enabled", "Kubernetes Version", "OS Image", "Kernel Version",
+		"Host", "Cluster", "Status", "# Cores", "Total RAM (GiB)",
+		"Allocatable CPU", "Allocatable RAM (GiB)", "VM vCPUs",
+		"VM RAM (GiB)", "vCPU Overcommit Ratio", "# VMs",
+		"KVM Hardware Accel", "Kubernetes Version", "OS Image", "Kernel Version",
 		"Node Taints", "Node Conditions",
 	}
 
@@ -389,7 +393,7 @@ func writeKVNodeSheet(f *excelize.File, report *engine.InventoryReport, headerSt
 		}
 
 		vals := []interface{}{
-			r.NodeName, r.Status, r.TotalPhysicalCores, r.TotalRAMGiB,
+			r.Host, r.Cluster, r.Status, r.PhysicalCores, r.TotalRAMGiB,
 			r.AllocatableCPU, r.AllocatableRAMGiB, r.AllocatedVMvCPUs,
 			r.AllocatedVMRAMGiB, r.VCPUOvercommitRatio, r.ActiveVMCount,
 			r.KVMHardwareAccel, r.KubernetesVersion, r.OSImage, r.KernelVersion,
@@ -413,7 +417,7 @@ func writeKVStoragePoolSheet(f *excelize.File, report *engine.InventoryReport, h
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"StorageClass Name", "Provisioner / CSI Driver", "Reclaim Policy",
+		"StorageClass Name", "Cluster", "Provisioner / CSI Driver", "Reclaim Policy",
 		"VolumeBindingMode", "AllowVolumeExpansion", "Is Default Class",
 		"Total Bound PVC Count", "Total Allocated Capacity (GiB)",
 	}
@@ -428,7 +432,7 @@ func writeKVStoragePoolSheet(f *excelize.File, report *engine.InventoryReport, h
 		}
 
 		vals := []interface{}{
-			r.StorageClassName, r.ProvisionerCSIDriver, r.ReclaimPolicy,
+			r.StorageClassName, r.Cluster, r.ProvisionerCSIDriver, r.ReclaimPolicy,
 			r.VolumeBindingMode, r.AllowVolumeExpansion, r.IsDefaultClass,
 			r.TotalBoundPVCCount, r.TotalAllocatedSizeGiB,
 		}
@@ -450,8 +454,7 @@ func writeKVHardwareSheet(f *excelize.File, report *engine.InventoryReport, head
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"VM Name", "Namespace", "Device Type", "Device Name",
-		"Resource Name", "Node Selector / Assigned Node",
+		"VM", "Cluster", "Namespace", "Host", "Device Type", "Device Name", "Resource Name",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -464,8 +467,7 @@ func writeKVHardwareSheet(f *excelize.File, report *engine.InventoryReport, head
 		}
 
 		vals := []interface{}{
-			r.VMName, r.Namespace, r.DeviceType, r.DeviceName,
-			r.ResourceName, r.AssignedNode,
+			r.VM, r.Cluster, r.Namespace, r.Host, r.DeviceType, r.DeviceName, r.ResourceName,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 
@@ -485,8 +487,8 @@ func writeKVHealthSheet(f *excelize.File, report *engine.InventoryReport, header
 	f.NewSheet(sheet)
 
 	headers := []string{
-		"Rule ID", "Category", "Severity", "Resource Kind",
-		"Resource Name", "Namespace", "Issue Summary", "Remediation Recommendation",
+		"Rule ID", "Severity", "Category", "Resource Kind",
+		"Resource Name", "Cluster", "Namespace", "Issue Summary", "Remediation Recommendation",
 	}
 
 	maxLens := writeHeaders(f, sheet, headers, headerStyle)
@@ -501,8 +503,8 @@ func writeKVHealthSheet(f *excelize.File, report *engine.InventoryReport, header
 		}
 
 		vals := []interface{}{
-			r.RuleID, r.Category, r.Severity, r.ResourceKind,
-			r.ResourceName, r.Namespace, r.IssueSummary, r.Remediation,
+			r.RuleID, r.Severity, r.Category, r.ResourceKind,
+			r.ResourceName, r.Cluster, r.Namespace, r.IssueSummary, r.Remediation,
 		}
 		maxLens = updateMaxLens(maxLens, vals)
 

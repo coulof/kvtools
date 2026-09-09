@@ -15,9 +15,9 @@ func TestExportJSON(t *testing.T) {
 		GeneratedAt: time.Now().UTC(),
 		Info: []engine.KVInfoRecord{
 			{
-				VMName:     "vm-1",
+				VM:         "vm-1",
 				Namespace:  "default",
-				PowerState: "Running",
+				Powerstate: "poweredOn",
 			},
 		},
 		Summary: engine.ReportSummary{
@@ -36,7 +36,7 @@ func TestExportJSON(t *testing.T) {
 		t.Fatalf("failed to unmarshal exported JSON: %v", err)
 	}
 
-	if parsed.ClusterName != "test-cluster" || len(parsed.Info) != 1 || parsed.Info[0].VMName != "vm-1" {
+	if parsed.ClusterName != "test-cluster" || len(parsed.Info) != 1 || parsed.Info[0].VM != "vm-1" {
 		t.Errorf("unexpected unmarshaled JSON: %+v", parsed)
 	}
 }
