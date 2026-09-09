@@ -32,6 +32,10 @@ kvtools is a CLI utility that exports KubeVirt cluster inventory to Excel, JSON,
 
 ## 13 Inventory Sheets
 
+<p align="center">
+  <img src="assets/excel-preview.png" alt="KVTools Excel Export Preview" width="800">
+</p>
+
 | Sheet | Description |
 |---|---|
 | **`kvInfo`** | VM inventory, power state, node placement, guest OS, firmware/boot, TPM, uptime, and UID. |
