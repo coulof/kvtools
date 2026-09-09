@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo-wordmark.svg" alt="KVTools Logo" width="380">
+  <img src="assets/logo-wordmark.svg" alt="KVTools Logo" width="300">
 </p>
 
 <p align="center">
